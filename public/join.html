@@ -1,0 +1,742 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>HRE Quiz — Join</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;height:100%;font-family:'Segoe UI',system-ui,sans-serif;background:#0d1117;color:#e2ddc7;-webkit-tap-highlight-color:transparent}
+body{display:flex;flex-direction:column;overflow:hidden}
+
+/* SCORE BAR */
+#score-bar{background:#202338;border-bottom:2px solid #EE963F55;padding:10px 20px;display:none;justify-content:space-between;align-items:center;flex-shrink:0;min-height:56px}
+.sb-name{font-size:13px;color:#aaa}
+.sb-score{font-size:38px;font-weight:900;color:#EE963F;line-height:1;letter-spacing:-.02em}
+.sb-score.neg{color:#F09595}
+.sb-right{display:flex;flex-direction:column;align-items:flex-end;gap:4px}
+.sb-rank{font-size:14px;color:#888;font-weight:600}
+.round-pill{font-size:11px;font-weight:700;padding:3px 10px;border-radius:10px;text-transform:uppercase;letter-spacing:.05em}
+.rr-pill{background:#185FA522;color:#85B7EB;border:1px solid #378ADD44}
+.bz-pill{background:#EE963F22;color:#EE963F;border:1px solid #EE963F44}
+
+/* MAIN SCROLL AREA */
+#main{flex:1;overflow-y:auto;overflow-x:hidden}
+
+/* ALL SCREENS */
+.screen{display:none;flex-direction:column;align-items:center;padding:32px 24px;min-height:100%;gap:16px}
+.screen.on{display:flex}
+
+/* JOIN SCREEN */
+#join-screen{justify-content:center}
+#join-screen h1{font-size:28px;font-weight:800;color:#EE963F;text-align:center}
+#join-screen .sub{font-size:14px;color:#777;text-align:center}
+#name-input{width:100%;max-width:420px;padding:14px 18px;border-radius:12px;border:2px solid #ffffff22;background:#1a2030;color:#e2ddc7;font-size:18px;font-family:inherit;text-align:center;outline:none}
+#name-input:focus{border-color:#EE963F}
+#btn-join{width:100%;max-width:420px;padding:16px;border-radius:12px;border:none;background:#EE963F;color:#fff;font-size:18px;font-weight:700;cursor:pointer;font-family:inherit}
+#btn-join:active{transform:scale(.98)}
+#in-progress-msg{font-size:14px;color:#E24B4A;text-align:center;font-weight:600;display:none}
+/* Rejoin code path */
+#rejoin-toggle{font-size:13px;color:#555;cursor:pointer;text-decoration:underline;text-underline-offset:2px}
+#rejoin-toggle:hover{color:#aaa}
+#rejoin-section{display:none;flex-direction:column;align-items:center;gap:10px;width:100%;max-width:420px}
+#rejoin-section.show{display:flex}
+#code-input{width:100%;padding:14px 18px;border-radius:12px;border:2px solid #EF9F2744;background:#1a2030;color:#EF9F27;font-size:24px;font-family:inherit;text-align:center;letter-spacing:.2em;outline:none}
+#code-input:focus{border-color:#EF9F27}
+#btn-use-code{width:100%;padding:14px;border-radius:12px;border:1px solid #EF9F2744;background:#EF9F2711;color:#EF9F27;font-size:16px;font-weight:700;cursor:pointer;font-family:inherit}
+#btn-use-code:active{transform:scale(.98)}
+#rejoin-error{font-size:13px;color:#F09595;text-align:center;display:none}
+
+/* WAIT SCREEN */
+#wait-screen{justify-content:center}
+.wait-circle{width:130px;height:130px;border-radius:50%;background:#1a2030;border:3px solid #EE963F44;display:flex;align-items:center;justify-content:center;font-size:13px;color:#EE963F;font-weight:600;text-align:center;padding:12px}
+#wait-name{font-size:24px;font-weight:700;text-align:center}
+#wait-screen .hint{font-size:14px;color:#555;text-align:center}
+
+/* QUESTION BOX — shared by RR, BZ, ans screens */
+.q-box{width:100%;background:#1a2030;border:1px solid #ffffff15;border-radius:12px;padding:14px 18px}
+.q-box.active-turn{border-color:#EE963F55}
+.q-cat-label{font-size:10px;color:#EE963F;letter-spacing:.07em;text-transform:uppercase;margin-bottom:5px}
+.q-text{font-size:16px;line-height:1.55;color:#e2ddc7}
+
+/* COMPACT ANTICIP BAR inside question box */
+.anticip-bar{background:#202338;border-radius:8px 8px 0 0;padding:6px 14px;display:none;align-items:center;justify-content:space-between;border-bottom:1px solid #EE963F33;margin:-14px -18px 10px -18px}
+.anticip-bar.show{display:flex}
+.anticip-bar .ab-lbl{font-size:11px;color:#aaa;letter-spacing:.05em;text-transform:uppercase}
+.anticip-bar .ab-n{font-size:26px;font-weight:900;color:#EE963F;animation:cdp .8s ease-in-out infinite}
+.anticip-bar .ab-hint{font-size:10px;color:#555}
+
+/* OPTIONS — always single column, always present */
+.opts-grid{width:100%;display:flex;flex-direction:column;gap:8px}
+.opt-btn{width:100%;padding:13px 16px;border-radius:10px;border:2px solid #ffffff15;background:#1a2030;color:#e2ddc7;font-size:15px;cursor:pointer;font-family:inherit;text-align:left;display:flex;align-items:center;gap:12px;transition:background .15s,border-color .15s}
+.opt-btn:hover:not(:disabled):not(.greyed){background:#ffffff0d;border-color:#ffffff25}
+.opt-btn:active:not(:disabled):not(.greyed){transform:scale(.99)}
+.opt-btn:disabled{cursor:not-allowed}
+.opt-btn.greyed{opacity:.28;cursor:default;pointer-events:none}
+.opt-btn.active-opt{border-color:#EE963F55;background:#EE963F09}
+.opt-lbl{width:34px;height:34px;border-radius:50%;background:#ffffff12;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;color:#EE963F;flex-shrink:0}
+.opt-btn.greyed .opt-lbl{color:#555}
+
+/* TIMER BAR */
+.timer-bar-wrap{width:100%;height:6px;background:#ffffff10;border-radius:3px;overflow:hidden}
+.timer-bar{height:100%;border-radius:3px;background:#EE963F;transition:width .3s linear,background .3s}
+.timer-bar.urgent{background:#E24B4A}
+.timer-secs{font-size:18px;font-weight:700;color:#EE963F;text-align:right;align-self:flex-end}
+.timer-secs.urgent{color:#E24B4A}
+
+/* STATUS CHIP */
+.status-chip{width:100%;padding:10px 16px;border-radius:8px;font-size:14px;font-weight:600;text-align:center;background:#1a2030;border:1px solid #ffffff15;color:#666}
+.status-chip.open{background:#EE963F22;border-color:#EE963F;color:#EE963F}
+.status-chip.myturn{background:#0F6E5622;border-color:#1D9E75;color:#5DCAA5}
+.status-chip.other{background:#185FA522;border-color:#378ADD44;color:#85B7EB}
+.status-chip.locked{background:#0f1117;border-color:#ffffff0f;color:#333}
+
+/* BUZZ BUTTON */
+#buzz-btn-wrap{width:100%;display:flex;flex-direction:column;align-items:center;gap:8px}
+#buzz-btn{width:220px;height:220px;border-radius:50%;background:#202338;border:4px solid #EE963F;color:#EE963F;font-size:32px;font-weight:900;cursor:pointer;font-family:inherit;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;line-height:1.1;user-select:none;transition:transform .1s,background .15s;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+#buzz-btn:hover:not(:disabled){background:#EE963F15}
+#buzz-btn:active:not(:disabled){transform:scale(.90);background:#EE963F22}
+#buzz-btn:disabled{opacity:.18;cursor:not-allowed;border-color:#333;color:#333}
+/* BUZZED CONFIRMATION — shows briefly before options appear */
+#buzzed-confirm{width:100%;padding:18px;border-radius:12px;background:#0F6E5622;border:2px solid #1D9E75;color:#5DCAA5;font-size:22px;font-weight:700;text-align:center;display:none}
+#space-hint{font-size:13px;color:#444;text-align:center;display:none}
+#space-hint.show{display:block}
+
+/* PASS + ANSWERED MSG */
+#pass-btn{width:100%;padding:11px;border-radius:8px;border:1px solid #ffffff18;background:transparent;color:#555;font-size:13px;cursor:pointer;font-family:inherit}
+#pass-btn:hover:not(:disabled){color:#aaa;border-color:#ffffff30}
+#pass-btn:disabled{opacity:.25;cursor:not-allowed}
+#answered-msg{width:100%;padding:14px;border-radius:10px;background:#EE963F12;border:1px solid #EE963F33;color:#EE963F;font-size:16px;font-weight:600;text-align:center;display:none}
+
+/* LOCKED MSG */
+#locked-msg{width:100%;padding:16px;border-radius:10px;background:#ffffff06;border:1px solid #ffffff0f;color:#555;font-size:14px;text-align:center;display:none}
+
+/* PAUSE CHIP */
+#pause-chip{display:none;width:100%;padding:10px 16px;border-radius:8px;background:#EF9F2715;border:1px solid #EF9F2744;color:#EF9F27;font-size:14px;font-weight:700;text-align:center}
+#pause-chip.show{display:block}
+#reveal-screen{justify-content:center}
+.rv-label{font-size:12px;color:#EE963F;letter-spacing:.1em;text-transform:uppercase}
+.rv-correct{font-size:22px;font-weight:700;color:#1D9E75;text-align:center;background:#0F6E5622;border:2px solid #1D9E75;border-radius:10px;padding:12px 20px;width:100%}
+
+/* SPLASH */
+#splash-screen{display:none;justify-content:center;min-height:100%;padding:40px}
+#splash-screen.show{display:flex}
+#splash-screen.correct{background:#071a10}
+#splash-screen.wrong,#splash-screen.timeout_bz{background:#1a0707}
+#splash-screen.pass,#splash-screen.timeout_pass{background:#1a1500}
+#splash-screen.no_buzz{background:#111111}
+#sp-pts{font-size:100px;font-weight:900;line-height:1}
+#splash-screen.correct #sp-pts{color:#1D9E75;animation:pop .4s cubic-bezier(.175,.885,.32,1.275) both}
+#splash-screen.wrong   #sp-pts,
+#splash-screen.timeout_bz #sp-pts{color:#E24B4A;animation:slam .3s ease-out both,shake .4s .3s both}
+#splash-screen.pass    #sp-pts,
+#splash-screen.timeout_pass #sp-pts{color:#EF9F27;font-size:66px;animation:pop .4s both}
+#splash-screen.no_buzz #sp-pts{color:#666;font-size:56px;animation:pop .4s both}
+#sp-name{font-size:22px;font-weight:700;color:#fff;text-align:center;margin-top:8px;animation:fup .4s .2s ease-out both}
+#sp-sub{font-size:14px;color:#aaa;text-align:center;margin-top:4px;animation:fup .4s .3s ease-out both}
+#sp-ans{padding:8px 18px;border-radius:8px;font-size:14px;font-weight:600;text-align:center;margin-top:10px;animation:fup .4s .4s ease-out both;display:none}
+#splash-screen.correct #sp-ans{background:#1D9E7533;color:#9FE1CB;border:1px solid #1D9E75;display:block}
+
+@keyframes pop{from{opacity:0;transform:scale(.3)}to{opacity:1;transform:scale(1)}}
+@keyframes slam{from{opacity:0;transform:scale(1.6)}to{opacity:1;transform:scale(1)}}
+@keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-14px)}40%{transform:translateX(14px)}60%{transform:translateX(-7px)}80%{transform:translateX(7px)}}
+@keyframes fup{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+@keyframes cdp{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
+</style>
+</head>
+<body>
+
+<!-- SCORE BAR -->
+<div id="score-bar">
+  <div>
+    <div class="sb-name" id="sb-name"></div>
+    <div class="sb-score" id="sb-score">0</div>
+  </div>
+  <div class="sb-right">
+    <div class="sb-rank" id="sb-rank"></div>
+    <div id="sb-round-pill"></div>
+  </div>
+</div>
+
+<div id="main">
+
+  <!-- JOIN -->
+  <div class="screen on" id="join-screen">
+    <h1>HRE Quiz</h1>
+    <div class="sub">Enter your team name to join</div>
+    <input type="text" id="name-input" placeholder="Team name…" maxlength="20" autocomplete="off">
+    <button id="btn-join">Join Quiz</button>
+    <div id="in-progress-msg">Quiz is in progress — please wait for a break.</div>
+    <span id="rejoin-toggle">Rejoin with a code?</span>
+    <div id="rejoin-section">
+      <div style="font-size:13px;color:#777;text-align:center">Enter the 4-digit code from your host</div>
+      <input type="number" id="code-input" placeholder="0000" maxlength="4" min="1000" max="9999">
+      <button id="btn-use-code">Rejoin</button>
+      <div id="rejoin-error"></div>
+    </div>
+    <div style="font-size:11px;color:#333">May 6, 2026 · Himalayan Ridge Engineering</div>
+  </div>
+
+  <!-- WAIT -->
+  <div class="screen" id="wait-screen">
+    <div class="wait-circle" id="wait-circle">Waiting for host…</div>
+    <div id="wait-name"></div>
+    <div class="hint">Watch the main screen!</div>
+  </div>
+
+  <!-- UNIFIED QUESTION SCREEN -->
+  <div class="screen" id="q-screen">
+    <div id="pause-chip">⏸ Quiz paused by host — stand by</div>
+
+    <!-- Question box with optional anticip countdown bar -->
+    <div class="q-box" id="q-box-main">
+      <div class="anticip-bar" id="anticip-bar">
+        <div>
+          <div class="ab-lbl">Buzzers open in</div>
+          <div class="ab-hint">Read the question!</div>
+        </div>
+        <div class="ab-n" id="anticip-num">8</div>
+      </div>
+      <div class="q-cat-label" id="q-cat"></div>
+      <div class="q-text" id="q-text">Waiting for question…</div>
+    </div>
+
+    <!-- Timer (shown during answering) -->
+    <div style="width:100%;display:flex;align-items:center;gap:10px" id="timer-row" style="display:none">
+      <div class="timer-bar-wrap" style="flex:1"><div class="timer-bar" id="timer-bar"></div></div>
+      <div class="timer-secs" id="timer-secs">45</div>
+    </div>
+
+    <!-- Status chip -->
+    <div class="status-chip" id="status-chip">Standby</div>
+
+    <!-- Options — always shown, state controls interactivity -->
+    <div class="opts-grid" id="opts-grid">
+      <button class="opt-btn greyed" data-opt="A"><span class="opt-lbl">A</span><span id="ot-A"></span></button>
+      <button class="opt-btn greyed" data-opt="B"><span class="opt-lbl">B</span><span id="ot-B"></span></button>
+      <button class="opt-btn greyed" data-opt="C"><span class="opt-lbl">C</span><span id="ot-C"></span></button>
+      <button class="opt-btn greyed" data-opt="D"><span class="opt-lbl">D</span><span id="ot-D"></span></button>
+    </div>
+
+    <!-- Pass button (RR only, shown only when it's your turn) -->
+    <button id="pass-btn" style="display:none">Pass — 0 points</button>
+
+    <!-- Answered confirmation -->
+    <div id="answered-msg">Answer submitted — waiting for reveal…</div>
+
+    <!-- Buzzed confirmation (brief state before options activate) -->
+    <div id="buzzed-confirm">✓ You buzzed in! Preparing options…</div>
+
+    <!-- Buzz button area (BZ only) -->
+    <div id="buzz-btn-wrap" style="display:none">
+      <button id="buzz-btn">BUZZ<br>IN</button>
+      <div id="space-hint">Press Spacebar to buzz in</div>
+    </div>
+
+    <!-- Locked out message (BZ — already answered this question) -->
+    <div id="locked-msg">You have had your chance on this question — stand by for the next one!</div>
+
+  </div>
+
+  <!-- REVEAL SCREEN -->
+  <div class="screen" id="reveal-screen">
+    <div class="rv-label">Correct Answer</div>
+    <div class="rv-correct" id="rv-ans"></div>
+    <div style="font-size:13px;color:#555;text-align:center">Host will load the next question shortly</div>
+  </div>
+
+  <!-- SPLASH -->
+  <div id="splash-screen">
+    <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;width:100%">
+      <div id="sp-pts"></div>
+      <div id="sp-name"></div>
+      <div id="sp-sub"></div>
+      <div id="sp-ans"></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ── STATE ─────────────────────────────────────────────────────
+let myId='', myName='', ws;
+let timerInt=null, bzTimerInt=null, answered=false, buzzed=false;
+let lastIsRR=false, spaceActive=false;
+let heartbeatInt=null, lastPong=0;
+let optionsLocked=true; // options not interactive until explicitly unlocked
+
+const $  = id => document.getElementById(id);
+const esc= s  => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+function showScreen(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('on'));
+  const el=$(id); if(el) el.classList.add('on');
+  hideSplash();
+}
+
+// ── WS ────────────────────────────────────────────────────────
+function connect(){
+  if(ws&&ws.readyState===WebSocket.OPEN) return;
+  ws=new WebSocket('ws://'+location.host);
+  ws.onopen=onOpen;
+  ws.onmessage=e=>{
+    const msg=JSON.parse(e.data);
+    if(msg.type==='pong'){lastPong=Date.now();return;}
+    handle(msg);
+  };
+  ws.onclose=()=>{stopHeartbeat();setTimeout(connect,2000);};
+}
+function onOpen(){
+  lastPong=Date.now(); // treat open as pong so we don't immediately close
+  startHeartbeat();
+  const sid=localStorage.getItem('hre_id');
+  if(sid) ws.send(JSON.stringify({type:'validate_identity',teamId:sid}));
+}
+function startHeartbeat(){
+  stopHeartbeat();
+  heartbeatInt=setInterval(()=>{
+    if(ws&&ws.readyState===WebSocket.OPEN) ws.send(JSON.stringify({type:'ping'}));
+    if(lastPong&&Date.now()-lastPong>12000){ws&&ws.close();}
+  },5000);
+}
+function stopHeartbeat(){if(heartbeatInt){clearInterval(heartbeatInt);heartbeatInt=null;}}
+document.addEventListener('visibilitychange',()=>{
+  if(document.visibilityState==='visible'){
+    if(ws&&ws.readyState===WebSocket.OPEN&&myId){
+      ws.send(JSON.stringify({type:'validate_identity',teamId:myId}));
+    }else{connect();}
+  }
+});
+function send(type,extra={}){if(ws&&ws.readyState===WebSocket.OPEN)ws.send(JSON.stringify({type,...extra}));}
+
+// ── MESSAGES ─────────────────────────────────────────────────
+function handle(msg){
+  switch(msg.type){
+    case 'identity_valid':
+      myId=msg.teamId; myName=msg.teamName;
+      activateBar(); $('wait-name').textContent=myName; showScreen('wait-screen');
+      break;
+    case 'force_rejoin':
+      localStorage.removeItem('hre_id'); localStorage.removeItem('hre_name');
+      myId=''; myName=''; resetAnswerState();
+      $('score-bar').style.display='none'; hideSplash(); showScreen('join-screen');
+      break;
+    case 'identified':
+      myId=msg.teamId; myName=msg.teamName;
+      localStorage.setItem('hre_id',myId); localStorage.setItem('hre_name',myName);
+      activateBar(); $('wait-name').textContent=myName; showScreen('wait-screen');
+      break;
+    case 'quiz_in_progress':
+      $('in-progress-msg').style.display='block'; break;
+    case 'rejoin_failed':
+      $('rejoin-error').textContent=msg.reason||'Invalid code.'; $('rejoin-error').style.display='block'; break;
+    case 'buzzer_state': {
+      lastIsRR=msg.activeRound===1;
+      spaceActive=(msg.phase==='bz_ready'||msg.phase==='tiebreaker')&&!msg.isLocked&&!msg.bzActiveAnswerer;
+      // If answer screen is active and we are still the active answerer, only update bar
+      const onAns=document.querySelector('.screen.on')?.id==='q-screen';
+      const stillMine=(msg.phase==='rr_answering'&&msg.myTurn)||(msg.phase==='bz_answering'&&msg.isActiveAnswerer);
+      if(onAns&&stillMine&&answered){updateBar(msg);break;}
+      renderState(msg);
+      break;
+    }
+    case 'your_turn':
+      lastIsRR=(msg.round===1);
+      showAnswerOptions(msg);
+      break;
+  }
+}
+
+// ── JOIN ──────────────────────────────────────────────────────
+$('btn-join').onclick=()=>{
+  const n=$('name-input').value.trim();
+  if(!n){alert('Please enter a team name.');return;}
+  $('in-progress-msg').style.display='none';
+  ws.send(JSON.stringify({type:'identify_buzzer',teamName:n}));
+};
+$('name-input').onkeydown=e=>{if(e.key==='Enter')$('btn-join').click();};
+
+// Rejoin toggle
+$('rejoin-toggle').onclick=()=>{
+  const s=$('rejoin-section');
+  s.classList.toggle('show');
+  $('rejoin-toggle').textContent=s.classList.contains('show')?'← Back to join':'Rejoin with a code?';
+};
+$('btn-use-code').onclick=()=>{
+  const code=$('code-input').value.trim();
+  if(!code||code.length<4){$('rejoin-error').textContent='Please enter a 4-digit code.';$('rejoin-error').style.display='block';return;}
+  $('rejoin-error').style.display='none';
+  ws.send(JSON.stringify({type:'use_rejoin',code}));
+};
+$('code-input').onkeydown=e=>{if(e.key==='Enter')$('btn-use-code').click();};
+
+function activateBar(){$('score-bar').style.display='flex';$('sb-name').textContent=myName;}
+
+function updateBar(s){
+  if(!myId) return;
+  const sc=(s.scores||{})[myId]??0;
+  const sv=$('sb-score'); sv.textContent=sc; sv.className='sb-score'+(sc<0?' neg':'');
+  const sorted=Object.entries(s.scores||{}).sort((a,b)=>b[1]-a[1]);
+  const rank=sorted.findIndex(([id])=>id===myId)+1;
+  $('sb-rank').textContent=rank>0?'Rank #'+rank+' of '+sorted.length:'';
+  const rp=$('sb-round-pill');
+  if(s.activeRound===1){rp.className='round-pill rr-pill';rp.textContent='Round Robin';}
+  else if(s.activeRound===2){rp.className='round-pill bz-pill';rp.textContent='Buzzer Round';}
+  else{rp.textContent='';}
+}
+
+// ── RENDER STATE ──────────────────────────────────────────────
+function renderState(s){
+  updateBar(s);
+  const p=s.phase;
+
+  if(s.splashData){showSplash(s.splashData,s);return;}
+  hideSplash();
+
+  // Simple wait states
+  const waitTexts={
+    lobby:'Waiting for host…', starting:'Get ready!',
+    rr_setup:'Round Robin — host loading first question…',
+    rr_complete:'Round Robin complete! Buzzer Round coming up…',
+    bz_transition:'⚡ Buzzer Round starting!',
+    bz_setup:'Buzzer Round — host loading first question…',
+    bz_complete:'Event ended — check the main screen!',
+    finale:'Event ended — check the main screen!'
+  };
+  if(waitTexts[p]){
+    showScreen('wait-screen');
+    $('wait-circle').textContent=s.paused?'⏸ Quiz paused':waitTexts[p];
+    return;
+  }
+
+  // Reveal screen
+  if((p==='rr_reveal_answer'||p==='bz_reveal_answer')&&s.revealData){
+    showScreen('reveal-screen');
+    $('rv-ans').textContent=s.revealData.correct+' — '+s.revealData.answerText;
+    stopTimer();stopBzTimer();resetAnswerState();return;
+  }
+  // Reveal screen even if revealData not yet populated (fallback)
+  if(p==='rr_reveal_answer'||p==='bz_reveal_answer'){
+    showScreen('reveal-screen');stopTimer();stopBzTimer();return;
+  }
+
+  // All question phases use unified q-screen
+  const qPhases=['rr_answering','rr_answered','rr_reveal',
+                 'bz_anticip','bz_ready','bz_answering','bz_answered','bz_reveal',
+                 'bz_reopen','tiebreaker'];
+  if(qPhases.includes(p)){
+    renderQScreen(s); return;
+  }
+
+  // Fallback
+  showScreen('wait-screen'); $('wait-circle').textContent='Stand by…';
+}
+
+function renderQScreen(s){
+  showScreen('q-screen');
+  const p=s.phase;
+  const q=s.currentQ;
+
+  // Pause chip
+  $('pause-chip').className=s.paused?'show':'';
+
+  // Lock all interaction when paused
+  if(s.paused){
+    document.querySelectorAll('.opt-btn').forEach(b=>{b.classList.add('greyed');b.disabled=true;b.style.pointerEvents='none';});
+    $('pass-btn').disabled=true;
+    $('buzz-btn').disabled=true;
+    $('status-chip').textContent='⏸ Quiz paused by host';
+    $('status-chip').className='status-chip';
+    return;
+  }
+
+  // Populate question text and options (always)
+  $('q-cat').textContent=q?.category||'';
+  $('q-text').textContent=q?.question||'Waiting for question…';
+  if(q){
+    ['A','B','C','D'].forEach(l=>{$('ot-'+l).textContent=q.options[l];});
+  }
+
+  // Anticip bar (compact, in-flow inside question box)
+  const ab=$('anticip-bar');
+  if(p==='bz_anticip'){
+    ab.className='anticip-bar show';
+    $('anticip-num').textContent=s.bzCountdown>0?s.bzCountdown:'GO!';
+  }else{
+    ab.className='anticip-bar';
+  }
+
+  // Question box border — highlight when it's this team's turn
+  const qbox=$('q-box-main');
+  const isMyTurnRR=p==='rr_answering'&&s.myTurn;
+  const isMyTurnBZ=p==='bz_answering'&&s.isActiveAnswerer;
+  qbox.className='q-box'+(isMyTurnRR||isMyTurnBZ?' active-turn':'');
+
+  // ── OPTIONS STATE ──────────────────────────────────────────
+  // Options are ALWAYS shown but their interactive state depends on situation:
+  // - greyed: visible but non-interactive (spectating, waiting, locked)
+  // - active-opt: my turn, can click
+  // answered state is managed separately
+  const canAnswer=(p==='rr_answering'&&s.myTurn)||(p==='bz_answering'&&s.isActiveAnswerer);
+
+  document.querySelectorAll('.opt-btn').forEach(btn=>{
+    btn.classList.remove('greyed','active-opt');
+    btn.disabled=true;
+    if(canAnswer&&!answered){
+      btn.classList.add('active-opt');
+      btn.disabled=false;
+    }else{
+      btn.classList.add('greyed');
+    }
+  });
+
+  // ── TIMER ─────────────────────────────────────────────────
+  const timerRow=$('timer-row');
+  if(s.timerEnd&&canAnswer&&!answered){
+    timerRow.style.display='flex';
+    startTimer(s.timerEnd, lastIsRR?s.currentQ?.timeout||45:30);
+  }else{
+    timerRow.style.display='none';
+    stopTimer();
+  }
+
+  // ── PASS BUTTON ───────────────────────────────────────────
+  const pb=$('pass-btn');
+  pb.style.display=(p==='rr_answering'&&s.myTurn&&!answered)?'block':'none';
+  pb.disabled=answered;
+
+  // ── ANSWERED MSG ──────────────────────────────────────────
+  $('answered-msg').style.display=answered&&canAnswer?'block':'none';
+
+  // ── BUZZED CONFIRM ────────────────────────────────────────
+  // Only shown briefly between buzz and options appearing
+  // (managed by showAnswerOptions, not here)
+
+  // ── BUZZ BUTTON ───────────────────────────────────────────
+  const bba=$('buzz-btn-wrap');
+  const buzzBtn=$('buzz-btn');
+  const hint=$('space-hint');
+  const showBuzz=s.activeRound===2||(p==='tiebreaker');
+  if(showBuzz&&!answered){
+    bba.style.display='flex';
+    $('buzzed-confirm').style.display='none';
+    if(s.isLocked){
+      buzzBtn.disabled=true; hint.className='space-hint';
+    }else if(p==='bz_anticip'){
+      buzzBtn.disabled=true; hint.className='space-hint';
+    }else if(p==='bz_ready'||p==='tiebreaker'){
+      buzzBtn.disabled=false; hint.className='space-hint show';
+    }else if(p==='bz_answering'&&!s.isActiveAnswerer){
+      buzzBtn.disabled=true; hint.className='space-hint';
+    }else{
+      buzzBtn.disabled=true; hint.className='space-hint';
+    }
+  }else{
+    bba.style.display='none';
+  }
+
+  // ── LOCKED MSG ────────────────────────────────────────────
+  $('locked-msg').style.display=s.isLocked?'block':'none';
+
+  // ── STATUS CHIP ───────────────────────────────────────────
+  const st=$('status-chip');
+  const curId=s.teamOrder&&s.currentPasser!=null?s.teamOrder[s.currentPasser]:null;
+  const curName=curId&&s.teams?.[curId]?.name?s.teams[curId].name:'a team';
+  const bzNm=s.bzAnsweringTeamName||'a team';
+
+  if(p==='rr_answering'){
+    if(s.myTurn){st.textContent="It's your turn — answer now!";st.className='status-chip myturn';}
+    else{st.textContent=curName+' is answering…';st.className='status-chip other';}
+  }else if(p==='rr_answered'){
+    st.textContent=curName+' has answered — revealing…';st.className='status-chip other';
+  }else if(p==='rr_reveal'){
+    const sp=s.splashData;
+    st.textContent=sp?.type==='pass'||sp?.type==='timeout_pass'?curName+' passed':'Checking answer…';
+    st.className='status-chip other';
+  }else if(p==='bz_anticip'){
+    st.textContent='Read the question — buzzers open in '+s.bzCountdown+'s';st.className='status-chip';
+  }else if(p==='bz_ready'||p==='tiebreaker'){
+    if(s.isLocked){st.textContent='You are locked out this question';st.className='status-chip locked';}
+    else{st.textContent='BUZZ IN! — Attempt '+s.bzAttempt+' of 3';st.className='status-chip open';}
+  }else if(p==='bz_answering'){
+    if(s.isActiveAnswerer){st.textContent="You buzzed in — answer now!";st.className='status-chip myturn';}
+    else{st.textContent=bzNm+' is answering…';st.className='status-chip other';}
+  }else if(p==='bz_answered'||p==='bz_reveal'){
+    st.textContent='Checking answer…';st.className='status-chip';
+  }else if(p==='bz_reopen'){
+    const nextAttempt=s.bzAttempt+1;
+    st.textContent=(s.isLocked?'You are locked out — ':'Attempt '+nextAttempt+' of 3 — ')+'buzzers reopen in '+s.bzCountdown+'s';
+    st.className=s.isLocked?'status-chip locked':'status-chip open';
+  }else{
+    st.textContent='Stand by…';st.className='status-chip';
+  }
+}
+
+// ── SHOW ANSWER OPTIONS (called by your_turn message) ─────────
+function showAnswerOptions(msg){
+  resetAnswerState();
+  // Update question text and options
+  $('q-cat').textContent='';
+  $('q-text').textContent=msg.question;
+  ['A','B','C','D'].forEach(l=>{$('ot-'+l).textContent=msg.options[l];});
+
+  // Show q-screen if not already showing
+  showScreen('q-screen');
+
+  // Hide buzz button — they already buzzed
+  $('buzz-btn-wrap').style.display='none';
+  $('buzzed-confirm').style.display='none';
+  $('locked-msg').style.display='none';
+
+  // Show pass button for RR only
+  const pb=$('pass-btn');
+  pb.style.display=msg.round===1?'block':'none';
+  pb.disabled=false;
+
+  // Show timer
+  $('timer-row').style.display='flex';
+  if(msg.timerEnd&&msg.timeout) startTimer(msg.timerEnd,msg.timeout);
+
+  // Status
+  const st=$('status-chip');
+  st.textContent="It's your turn — answer now!";st.className='status-chip myturn';
+
+  // Unlock options with a brief delay to prevent accidental taps on mobile
+  // (especially critical for BZ where the buzz button was just tapped)
+  const delay=msg.round===2?900:0; // 900ms delay for buzzer round, immediate for RR
+  document.querySelectorAll('.opt-btn').forEach(btn=>{
+    btn.classList.remove('greyed','active-opt');
+    btn.classList.add('greyed'); // greyed while delay runs
+    btn.disabled=true;
+    btn.style.pointerEvents='none';
+  });
+  setTimeout(()=>{
+    if(answered) return; // team may have passed already (RR) or timed out
+    document.querySelectorAll('.opt-btn').forEach(btn=>{
+      btn.classList.remove('greyed');
+      btn.classList.add('active-opt');
+      btn.disabled=false;
+      btn.style.pointerEvents='';
+    });
+  },delay);
+}
+
+// ── TIMERS ────────────────────────────────────────────────────
+function startTimer(end,total){
+  stopTimer();
+  timerInt=setInterval(()=>{
+    const rem=Math.max(0,(end-Date.now())/1000);
+    const pct=rem/total*100;
+    $('timer-secs').textContent=Math.ceil(rem);
+    $('timer-bar').style.width=pct+'%';
+    const u=pct<25;
+    $('timer-bar').className='timer-bar'+(u?' urgent':'');
+    $('timer-secs').className='timer-secs'+(u?' urgent':'');
+    if(rem<=0){stopTimer();lockOptions();}
+  },200);
+}
+function stopTimer(){if(timerInt){clearInterval(timerInt);timerInt=null;}}
+
+function startBzTimer(end,total){
+  stopBzTimer();
+  const bar=$('timer-bar'); // reuse same bar
+  bzTimerInt=setInterval(()=>{
+    const rem=Math.max(0,(end-Date.now())/1000);
+    bar.style.width=(rem/total*100)+'%';
+    bar.classList.toggle('urgent',rem/total<0.25);
+    if(rem<=0)stopBzTimer();
+  },200);
+}
+function stopBzTimer(){if(bzTimerInt){clearInterval(bzTimerInt);bzTimerInt=null;}}
+
+function lockOptions(){
+  document.querySelectorAll('.opt-btn').forEach(b=>{
+    b.disabled=true;b.classList.add('greyed');b.classList.remove('active-opt');b.style.pointerEvents='none';
+  });
+  $('pass-btn').disabled=true;
+}
+
+function resetAnswerState(){
+  answered=false; buzzed=false;
+  $('answered-msg').style.display='none';
+  $('buzzed-confirm').style.display='none';
+  stopTimer();stopBzTimer();
+  document.querySelectorAll('.opt-btn').forEach(b=>{b.style.pointerEvents='';});
+}
+
+// ── OPTION CLICKS ─────────────────────────────────────────────
+document.querySelectorAll('.opt-btn').forEach(btn=>{
+  btn.onclick=()=>{
+    if(answered) return;
+    if(btn.classList.contains('greyed')) return;
+    answered=true; stopTimer(); lockOptions();
+    $('answered-msg').style.display='block';
+    $('pass-btn').style.display='none';
+    send(lastIsRR?'rr_submit':'bz_submit',{answer:btn.dataset.opt});
+    if(navigator.vibrate)navigator.vibrate(60);
+  };
+});
+
+$('pass-btn').onclick=()=>{
+  if(answered) return;
+  answered=true; stopTimer(); lockOptions();
+  $('answered-msg').style.display='block';
+  $('pass-btn').style.display='none';
+  send('rr_pass');
+};
+
+// ── BUZZ BUTTON ───────────────────────────────────────────────
+$('buzz-btn').onclick=()=>{
+  if(buzzed) return;
+  buzzed=true;
+  $('buzz-btn').disabled=true;
+  $('space-hint').className='space-hint';
+  send('buzz');
+  if(navigator.vibrate)navigator.vibrate(80);
+  // Show confirmation message briefly — options will appear via your_turn
+  $('buzzed-confirm').style.display='block';
+};
+
+document.addEventListener('keydown',e=>{
+  if(e.code==='Space'&&spaceActive&&!e.repeat&&!buzzed){
+    e.preventDefault();
+    buzzed=true;
+    $('buzz-btn').disabled=true;
+    send('buzz');
+    if(navigator.vibrate)navigator.vibrate(80);
+    $('buzzed-confirm').style.display='block';
+  }
+});
+
+// ── SPLASH ────────────────────────────────────────────────────
+function showSplash(data,s){
+  stopTimer();stopBzTimer();resetAnswerState();
+  const el=$('splash-screen');
+  el.className='show '+data.type; el.style.display='flex';
+  const ptsMap={correct:'+'+data.points,wrong:'−'+Math.abs(data.points||5),timeout_bz:'TIME OUT −5',pass:'PASS',timeout_pass:"TIME'S UP",no_buzz:'NO BUZZ'};
+  $('sp-pts').textContent=ptsMap[data.type]||'';
+  $('sp-name').textContent=data.teamName||'';
+  const subMap={pass:'→ '+(data.nextTeam||'next team'),timeout_pass:'→ '+(data.nextTeam||'next team'),timeout_bz:'−5 pts · slot lost',no_buzz:data.message||'',wrong:'',correct:''};
+  $('sp-sub').textContent=subMap[data.type]||'';
+  const ans=$('sp-ans');
+  if(data.type==='correct'&&data.answer){ans.textContent=data.correct+' — '+data.answer;}
+  else{ans.style.display='none';}
+  if(navigator.vibrate){
+    if(data.type==='correct')navigator.vibrate([100,50,100,50,200]);
+    else if(data.type==='wrong'||data.type==='timeout_bz')navigator.vibrate([200,100,50,100,50]);
+    else navigator.vibrate(100);
+  }
+  updateBar(s);
+}
+function hideSplash(){const el=$('splash-screen');el.style.display='none';el.className='';}
+
+// ── INIT ──────────────────────────────────────────────────────
+const _saved=localStorage.getItem('hre_id');
+if(_saved){
+  $('wait-name').textContent=localStorage.getItem('hre_name')||'';
+  showScreen('wait-screen');
+}
+connect();
+</script>
+</body>
+</html>

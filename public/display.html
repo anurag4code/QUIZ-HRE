@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>HRE Quiz — Display</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;height:100%;overflow:hidden;background:#0d1117;font-family:'Segoe UI',system-ui,sans-serif;color:#fff}
+#root{display:grid;grid-template-columns:1fr 300px;grid-template-rows:64px 1fr 72px;height:100vh}
+
+/* HEADER */
+#hdr{grid-column:1/3;background:#202338;border-bottom:2px solid #EE963F;display:flex;align-items:center;justify-content:space-between;padding:0 32px}
+.logo{font-size:20px;font-weight:700;color:#EE963F}
+.hdr-mid{display:flex;align-items:center;gap:12px}
+.round-badge{padding:5px 16px;border-radius:20px;font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+.rr-badge{background:#185FA522;color:#85B7EB;border:1px solid #378ADD55}
+.bz-badge{background:#EE963F22;color:#EE963F;border:1px solid #EE963F55}
+.q-badge{font-size:14px;color:#888}
+.diff-easy{background:#0F6E5622;color:#5DCAA5;border:1px solid #5DCAA544;padding:4px 12px;border-radius:14px;font-size:12px;font-weight:600}
+.diff-medium{background:#BA751722;color:#EF9F27;border:1px solid #EF9F2744;padding:4px 12px;border-radius:14px;font-size:12px;font-weight:600}
+.diff-hard{background:#A32D2D22;color:#F09595;border:1px solid #F0959544;padding:4px 12px;border-radius:14px;font-size:12px;font-weight:600}
+.hdr-cat{padding:4px 12px;border-radius:14px;font-size:12px;font-weight:600;background:#ffffff12;color:#E2DDC7}
+
+/* MAIN */
+#main{grid-column:1;display:flex;flex-direction:column;padding:20px 28px 12px;gap:12px;overflow:hidden}
+
+/* LOBBY */
+#lobby{display:none;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:18px;text-align:center}
+#lobby h1{font-size:48px;font-weight:800;color:#EE963F}
+#lobby-chips{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;min-height:44px}
+#lobby-url{font-size:26px;font-weight:700;color:#E2DDC7;background:#1a1f30;padding:10px 28px;border-radius:10px;border:1px solid #333}
+
+/* STANDBY — shown during rr_setup / bz_setup instead of lobby */
+#standby{display:none;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:20px;text-align:center}
+#standby .sb-round{font-size:14px;color:#EE963F;letter-spacing:.15em;text-transform:uppercase}
+#standby h2{font-size:42px;font-weight:800;color:#fff}
+#standby p{font-size:20px;color:#666;max-width:600px;line-height:1.5}
+#standby .sb-hint{font-size:15px;color:#444}
+
+/* QUESTION AREA — always shown when question is loaded */
+#q-area{display:none;flex-direction:column;gap:10px;flex:1;position:relative}
+#q-top{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+#whose-turn{font-size:14px;font-weight:600;padding:5px 14px;border-radius:8px;background:#202338;border:1px solid #EE963F44;color:#EE963F}
+#attempt-badge{font-size:13px;font-weight:700;padding:4px 12px;border-radius:14px;background:#ffffff12;color:#aaa;display:none}
+
+/* BZ ANTICIP COUNTDOWN — overlay on top of question, not a replacement */
+/* BZ ANTICIP STRIP — normal flow, pushes content down, does not overlap */
+#bz-anticip-overlay{display:none;background:#202338;border-radius:8px;padding:8px 16px;align-items:center;justify-content:space-between;border:1px solid #EE963F33;margin-bottom:10px}
+#bz-anticip-overlay.show{display:flex}
+#bz-anticip-overlay .aol-label{font-size:13px;color:#aaa;letter-spacing:.06em;text-transform:uppercase}
+#bz-anticip-overlay .aol-num{font-size:30px;font-weight:900;color:#EE963F;line-height:1;animation:bpulse .8s ease-in-out infinite}
+#bz-anticip-overlay .aol-sub{font-size:11px;color:#666;text-align:right}
+/* BZ REOPEN STRIP */
+#bz-reopen-overlay{display:none;background:#0F6E5618;border-radius:8px;padding:8px 16px;align-items:center;justify-content:space-between;border:1px solid #1D9E7533;margin-bottom:10px}
+#bz-reopen-overlay.show{display:flex}
+#bz-reopen-overlay .rol-label{font-size:13px;color:#5DCAA5;letter-spacing:.05em}
+#bz-reopen-overlay .rol-num{font-size:28px;font-weight:900;color:#1D9E75;line-height:1}
+#bz-reopen-overlay .rol-attempt{font-size:11px;color:#aaa}
+
+#q-text{font-size:26px;font-weight:600;line-height:1.4;color:#fff;background:#ffffff08;border-left:4px solid #EE963F;padding:16px 20px;border-radius:0 10px 10px 0}
+#opts{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.opt{display:flex;align-items:center;gap:12px;padding:12px 16px;border-radius:10px;background:#ffffff08;border:1.5px solid #ffffff15;font-size:18px;transition:all .4s}
+.opt .ol{width:34px;height:34px;border-radius:50%;background:#ffffff15;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#EE963F;flex-shrink:0}
+.opt.correct{background:#0F6E5633;border-color:#1D9E75}
+.opt.correct .ol{background:#1D9E75;color:#fff}
+.opt.fade{opacity:.2}
+
+/* BOTTOM STRIP */
+#q-bottom{display:flex;flex-direction:column;gap:6px}
+#timer-wrap{height:7px;background:#ffffff10;border-radius:4px;overflow:hidden}
+#timer-bar{height:100%;border-radius:4px;background:#EE963F;transition:width .4s linear,background .4s}
+#timer-bar.urgent{background:#E24B4A}
+#answered-hold{display:none;flex-direction:column;align-items:center;gap:10px;padding:10px 0}
+#ah-name{font-size:26px;font-weight:700;color:#EE963F}
+#ah-sub{font-size:15px;color:#888}
+#reveal-cd{font-size:64px;font-weight:900;color:#EE963F;animation:pulse 1s ease-in-out infinite}
+#eligibility-row{display:none;flex-wrap:wrap;gap:8px;justify-content:center;padding:4px 0}
+.elig-chip{padding:5px 14px;border-radius:18px;font-size:13px;font-weight:600}
+.elig-chip.eligible{background:#0F6E5622;border:1.5px solid #1D9E75;color:#5DCAA5}
+.elig-chip.locked{background:#ffffff06;border:1px solid #ffffff12;color:#444;text-decoration:line-through}
+#q-status{font-size:14px;color:#888;text-align:center;padding:2px 0}
+
+/* RR COMPLETE */
+#rr-complete-screen{display:none;position:fixed;inset:0;z-index:100;background:#0d1117;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:40px}
+.rrc-title{font-size:14px;color:#EE963F;letter-spacing:.15em;text-transform:uppercase}
+.rrc-heading{font-size:44px;font-weight:900;color:#fff}
+#rrc-board{width:100%;max-width:680px}
+.rrc-row{display:flex;align-items:center;gap:14px;padding:10px 18px;border-radius:10px;margin-bottom:6px;background:#ffffff08;border:1px solid #ffffff12}
+.rrc-row.top{background:#EE963F18;border-color:#EE963F55;padding:14px 18px}
+.rrc-rank{font-size:13px;color:#555;min-width:32px;font-weight:700}
+.rrc-name{flex:1;font-size:18px;font-weight:500;color:#E2DDC7}
+.rrc-name.lead{color:#EE963F;font-size:22px;font-weight:700}
+.rrc-score{font-size:22px;font-weight:700;min-width:50px;text-align:right}
+.pos{color:#5DCAA5}.neg{color:#F09595}.zer{color:#555}
+
+/* BZ TRANSITION */
+#bz-trans-screen{display:none;position:fixed;inset:0;z-index:100;background:#0d1117;flex-direction:column;align-items:center;justify-content:center;gap:20px}
+#bz-trans-screen .bt-label{font-size:16px;color:#EE963F;letter-spacing:.2em;text-transform:uppercase}
+#bz-trans-screen h1{font-size:72px;font-weight:900;color:#fff}
+#bz-trans-screen .bt-sub{font-size:24px;color:#888}
+
+/* REVEAL ANSWER */
+#reveal-screen{display:none;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:18px}
+.rv-label{font-size:14px;color:#EE963F;letter-spacing:.1em;text-transform:uppercase}
+#reveal-q{font-size:20px;color:#aaa;text-align:center;max-width:800px;line-height:1.4}
+#reveal-correct{font-size:32px;font-weight:700;color:#1D9E75;text-align:center;background:#0F6E5622;border:2px solid #1D9E75;border-radius:12px;padding:14px 28px;max-width:700px}
+
+/* FINALE */
+#finale-screen{display:none;position:fixed;inset:0;z-index:200;background:#0d1117;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:40px}
+.fn-title{font-size:14px;color:#EE963F;letter-spacing:.15em;text-transform:uppercase}
+.fn-event{font-size:46px;font-weight:900;color:#fff;text-align:center}
+#fn-board{width:100%;max-width:800px}
+.fn-row{display:flex;align-items:center;gap:14px;padding:10px 18px;border-radius:10px;margin-bottom:6px;background:#ffffff08;border:1px solid #ffffff12}
+.fn-row.winner{background:#EE963F18;border:2px solid #EE963F;padding:18px 24px;border-radius:14px;margin-bottom:12px}
+.fn-rank{font-size:13px;color:#555;min-width:30px;font-weight:700}
+.fn-name{flex:1;font-size:18px;font-weight:500;color:#E2DDC7}
+.fn-name.win{font-size:28px;font-weight:800;color:#EE963F}
+.fn-score{font-size:22px;font-weight:700;min-width:52px;text-align:right}
+.fn-score.win{font-size:36px;font-weight:900;color:#EE963F}
+#tb-btn{padding:12px 28px;border-radius:10px;background:#EE963F;border:none;color:#fff;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;display:none}
+
+/* SIDEBAR */
+#sidebar{grid-column:2;grid-row:2/4;background:#161b29;border-left:1px solid #ffffff12;padding:16px 12px;overflow-y:auto;display:flex;flex-direction:column;gap:8px}
+#sidebar h3{font-size:11px;color:#444;text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px}
+.srow{display:flex;align-items:center;gap:7px;padding:9px 10px;border-radius:8px;background:#ffffff08;border:1px solid #ffffff10;transition:all .3s}
+.srow.lead{background:#EE963F18;border-color:#EE963F44}
+.srow.active-turn{background:#185FA522;border-color:#378ADD55}
+.dot{width:7px;height:7px;border-radius:50%;background:#5DCAA5;flex-shrink:0}
+.dot.off{background:#333}
+.sr-rank{font-size:11px;color:#444;min-width:16px}
+.sr-name{flex:1;font-size:13px;font-weight:500;color:#E2DDC7;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sr-score{font-size:18px;font-weight:700;min-width:40px;text-align:right}
+.turn-arrow{font-size:11px;color:#378ADD;font-weight:700}
+
+/* BOTTOM */
+#bot{grid-column:1;background:#202338;border-top:1px solid #ffffff15;display:flex;align-items:center;justify-content:space-between;padding:0 24px}
+#status-msg{color:#EE963F;font-weight:600;font-size:14px}
+.rule-hint{color:#444;font-size:12px}
+
+/* PRE-BANNER */
+#pre-banner{display:none;position:fixed;inset:0;z-index:150;background:#0d1117;flex-direction:column;align-items:center;justify-content:center;gap:20px;padding:48px}
+#pre-banner .pb-org{font-size:12px;color:#EE963F;letter-spacing:.2em;text-transform:uppercase}
+#pre-banner .pb-main{font-size:38px;font-weight:700;color:#fff;text-align:center;line-height:1.4}
+#pre-banner .pb-sub{font-size:22px;font-weight:300;color:#888;text-align:center}
+#pre-chips{display:flex;flex-wrap:wrap;gap:12px;justify-content:center;min-height:52px}
+#pre-url{color:#EE963F;font-weight:600;font-size:20px;background:#1a1f30;padding:7px 20px;border-radius:8px;border:1px solid #EE963F44;margin-left:8px}
+
+/* WELCOME BANNER */
+#wb{display:none;position:fixed;inset:0;z-index:200;background:#0d1117;flex-direction:column;align-items:center;justify-content:center;gap:0;cursor:pointer}
+.wbi{opacity:0;transition-property:opacity,transform}
+#wb-yr{font-size:18px;color:#EE963F;letter-spacing:.3em;text-transform:uppercase;transform:translateY(-20px);transition-duration:.7s}
+#wb-wlc{font-size:44px;font-weight:300;color:#fff;letter-spacing:.12em;text-transform:uppercase;transform:translateY(20px);transition-duration:.7s;transition-delay:.25s;margin:10px 0 4px}
+#wb-hre{font-size:130px;font-weight:900;color:#EE963F;letter-spacing:.06em;text-transform:uppercase;transform:scale(.8);transition-duration:1s;transition-delay:.5s;line-height:1}
+#wb-quiz{font-size:64px;font-weight:800;color:#fff;letter-spacing:.1em;text-transform:uppercase;transform:scale(.8);transition-duration:1s;transition-delay:.7s;line-height:1.1}
+#wb-line{width:0;height:3px;background:#EE963F;border-radius:2px;opacity:1;transition:width 1.1s ease .9s;margin:26px 0 20px}
+#wb-tag{font-size:20px;color:#888;letter-spacing:.1em;transition-duration:.7s;transition-delay:1.4s}
+#wb-date{font-size:13px;color:#444;letter-spacing:.1em;margin-top:8px;transition-duration:.7s;transition-delay:1.7s}
+#wb-click{font-size:12px;color:#333;margin-top:48px;letter-spacing:.06em;transition-duration:.7s;transition-delay:2.2s}
+.wbi.in{opacity:1;transform:none!important}
+
+/* PAUSE OVERLAY */
+#pause-overlay{display:none;position:fixed;inset:0;z-index:250;background:#0d111799;backdrop-filter:blur(2px);flex-direction:column;align-items:center;justify-content:center;gap:12px}
+#pause-overlay.show{display:flex}
+#pause-overlay .po-text{font-size:72px;font-weight:900;color:#EF9F27;letter-spacing:.08em}
+#pause-overlay .po-sub{font-size:20px;color:#888}
+#splash{display:none;position:fixed;inset:0;z-index:300;flex-direction:column;align-items:center;justify-content:center;overflow:hidden}
+#splash.correct{background:#071a10}
+#splash.wrong,#splash.timeout_bz{background:#1a0707}
+#splash.pass,#splash.timeout_pass,#splash.no_buzz{background:#111209}
+#sp-bg{position:absolute;inset:0}
+#splash.correct    #sp-bg{background:radial-gradient(circle at 50% 50%,#0F6E5666,transparent 60%);animation:burst .4s ease-out forwards}
+#splash.wrong      #sp-bg,
+#splash.timeout_bz #sp-bg{background:radial-gradient(circle at 50% 50%,#A32D2D66,transparent 60%);animation:burst .3s ease-out forwards}
+#splash.pass       #sp-bg,
+#splash.timeout_pass #sp-bg{background:radial-gradient(circle at 50% 50%,#85500B44,transparent 60%);animation:burst .3s ease-out forwards}
+#splash.no_buzz    #sp-bg{background:radial-gradient(circle at 50% 50%,#33333344,transparent 60%);animation:burst .3s ease-out forwards}
+#sp-pts{position:relative;z-index:2;font-size:150px;font-weight:900;line-height:1;letter-spacing:-.02em}
+#splash.correct    #sp-pts{color:#1D9E75;animation:pop .4s cubic-bezier(.175,.885,.32,1.275) forwards}
+#splash.wrong      #sp-pts{color:#E24B4A;animation:slam .3s ease-out forwards,shake .45s .3s ease-in-out forwards}
+#splash.timeout_bz #sp-pts{color:#E24B4A;font-size:70px;animation:slam .3s ease-out forwards}
+#splash.pass       #sp-pts,
+#splash.timeout_pass #sp-pts{color:#EF9F27;font-size:80px;animation:pop .4s cubic-bezier(.175,.885,.32,1.275) forwards}
+#splash.no_buzz    #sp-pts{color:#666;font-size:60px;animation:pop .4s forwards}
+#sp-team{position:relative;z-index:2;font-size:38px;font-weight:700;color:#fff;margin-top:8px;animation:fup .4s .2s ease-out both}
+#sp-sub{position:relative;z-index:2;font-size:20px;color:#aaa;margin-top:6px;animation:fup .4s .3s ease-out both}
+#sp-ans{position:relative;z-index:2;margin-top:16px;padding:10px 26px;border-radius:10px;font-size:20px;font-weight:600;animation:fup .4s .35s ease-out both;display:none}
+#splash.correct #sp-ans{background:#1D9E7533;color:#9FE1CB;border:1px solid #1D9E75}
+#sw{position:absolute;border-radius:50%;pointer-events:none}
+.cp{position:absolute;border-radius:2px;animation:cfall linear forwards}
+.dp{position:absolute;border-radius:50%;animation:dfall linear forwards}
+
+@keyframes burst{from{opacity:0;transform:scale(.3)}to{opacity:1;transform:scale(1)}}
+@keyframes pop{from{opacity:0;transform:scale(.3)}to{opacity:1;transform:scale(1)}}
+@keyframes slam{from{opacity:0;transform:scale(1.6)}to{opacity:1;transform:scale(1)}}
+@keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-22px)}40%{transform:translateX(22px)}60%{transform:translateX(-12px)}80%{transform:translateX(12px)}}
+@keyframes fup{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
+@keyframes cfall{0%{opacity:1;transform:translateY(0) rotate(0)}100%{opacity:0;transform:translateY(100vh) rotate(720deg)}}
+@keyframes dfall{0%{opacity:.8;transform:translate(0,0) scale(1)}100%{opacity:0;transform:translate(var(--dx),120px) scale(.2)}}
+@keyframes sw-exp{from{width:0;height:0;top:50%;left:50%;opacity:1}to{width:140vw;height:140vw;top:calc(50% - 70vw);left:calc(50% - 70vw);opacity:0}}
+@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.1)}}
+@keyframes bpulse{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
+</style>
+</head>
+<body>
+
+<!-- PRE-BANNER -->
+<div id="pre-banner">
+  <div class="pb-org">Himalayan Ridge Engineering · May 6, 2026</div>
+  <div class="pb-main">Please gather your teammates,<br>find a seat and relax —</div>
+  <div class="pb-sub">we're waiting for everyone to join.</div>
+  <div id="pre-chips"></div>
+  <div style="font-size:15px;color:#555;text-align:center">Join on your laptop → <span id="pre-url">loading…</span></div>
+</div>
+
+<!-- WELCOME BANNER -->
+<div id="wb">
+  <div class="wbi" id="wb-yr">2026</div>
+  <div class="wbi" id="wb-wlc">Welcome to</div>
+  <div class="wbi" id="wb-hre">HRE</div>
+  <div class="wbi" id="wb-quiz">Quiz Competition</div>
+  <div id="wb-line"></div>
+  <div class="wbi" id="wb-tag">Learn · Share · Enjoy</div>
+  <div class="wbi" id="wb-date">May 6, 2026 · Himalayan Ridge Engineering</div>
+  <div class="wbi" id="wb-click">Click anywhere to begin</div>
+</div>
+
+<!-- PAUSE OVERLAY -->
+<div id="pause-overlay">
+  <div class="po-text">⏸ PAUSED</div>
+  <div class="po-sub">Host will resume shortly</div>
+</div>
+
+<!-- SPLASH -->
+<div id="splash">
+  <div id="sp-bg"></div><div id="sw"></div>
+  <div id="sp-pts"></div><div id="sp-team"></div>
+  <div id="sp-sub"></div><div id="sp-ans"></div>
+</div>
+
+<!-- RR COMPLETE -->
+<div id="rr-complete-screen">
+  <div class="rrc-title">Round Robin Complete</div>
+  <div class="rrc-heading">Half-Time Leaderboard</div>
+  <div id="rrc-board"></div>
+</div>
+
+<!-- BZ TRANSITION -->
+<div id="bz-trans-screen">
+  <div class="bt-label">Advancing to</div>
+  <h1>⚡ Buzzer Round</h1>
+  <div class="bt-sub">Get ready — it's about to get fast!</div>
+</div>
+
+<!-- FINALE -->
+<div id="finale-screen">
+  <div class="fn-title">Himalayan Ridge Engineering · May 6, 2026</div>
+  <div class="fn-event">HRE Quiz Competition — Final Results</div>
+  <div id="fn-board"></div>
+  <button id="tb-btn">Start Tiebreaker</button>
+</div>
+
+<!-- MAIN LAYOUT -->
+<div id="root">
+  <div id="hdr">
+    <div class="logo">HRE Quiz — May 6, 2026</div>
+    <div class="hdr-mid">
+      <span id="hdr-round" style="display:none"></span>
+      <span id="hdr-q" class="q-badge"></span>
+      <span id="hdr-cat" class="hdr-cat" style="display:none"></span>
+      <span id="hdr-diff" style="display:none"></span>
+    </div>
+    <div style="font-size:12px;color:#444">Himalayan Ridge Engineering</div>
+  </div>
+
+  <div id="main">
+    <!-- LOBBY (pre-event joining) -->
+    <div id="lobby">
+      <div style="font-size:12px;color:#EE963F;letter-spacing:.14em;text-transform:uppercase">Himalayan Ridge Engineering · May 6, 2026</div>
+      <h1>HRE Quiz Competition</h1>
+      <div id="lobby-chips"></div>
+      <div id="lobby-url">loading…</div>
+      <div style="font-size:14px;color:#555">Open this URL on your laptop to join</div>
+    </div>
+
+    <!-- STANDBY (between rounds) Bug 8 fix -->
+    <div id="standby">
+      <div class="sb-round" id="standby-round">Round Robin</div>
+      <h2 id="standby-heading">Preparing first question…</h2>
+      <p id="standby-msg">The host is setting up. Watch this screen — the question will appear shortly.</p>
+      <div class="sb-hint">Himalayan Ridge Engineering · May 6, 2026</div>
+    </div>
+
+    <!-- QUESTION AREA — persistent when question loaded -->
+    <div id="q-area">
+      <!-- Bug 2 fix: countdowns are overlays, not replacements -->
+      <div id="bz-anticip-overlay">
+        <div>
+          <div class="aol-label">Preparing — buzzers open in</div>
+          <div class="aol-sub">Read the question!</div>
+        </div>
+        <div id="bz-anticip-num" class="aol-num">8</div>
+      </div>
+
+      <div id="bz-reopen-overlay">
+        <div>
+          <div class="rol-label" id="rol-label">Attempt 2 of 3 — buzzers reopen in</div>
+        </div>
+        <div id="bz-reopen-num" class="rol-num">4</div>
+      </div>
+
+      <div id="q-top">
+        <div id="whose-turn" style="display:none"></div>
+        <div id="attempt-badge"></div>
+      </div>
+      <div id="q-text"></div>
+      <div id="opts">
+        <div class="opt" id="opt-A"><span class="ol">A</span><span id="ot-A"></span></div>
+        <div class="opt" id="opt-B"><span class="ol">B</span><span id="ot-B"></span></div>
+        <div class="opt" id="opt-C"><span class="ol">C</span><span id="ot-C"></span></div>
+        <div class="opt" id="opt-D"><span class="ol">D</span><span id="ot-D"></span></div>
+      </div>
+      <div id="q-bottom">
+        <div id="timer-wrap"><div id="timer-bar"></div></div>
+        <div id="answered-hold">
+          <div id="ah-name"></div>
+          <div id="ah-sub">has answered — revealing in</div>
+          <div id="reveal-cd">3</div>
+        </div>
+        <div id="eligibility-row"></div>
+        <div id="q-status"></div>
+      </div>
+    </div>
+
+    <!-- REVEAL ANSWER -->
+    <div id="reveal-screen">
+      <div class="rv-label">Correct Answer</div>
+      <div id="reveal-q"></div>
+      <div id="reveal-correct"></div>
+    </div>
+  </div>
+
+  <div id="sidebar">
+    <h3>Scoreboard</h3>
+    <div id="score-list"></div>
+  </div>
+
+  <div id="bot">
+    <span id="status-msg">Waiting for host…</span>
+    <span class="rule-hint">RR: +10/−5 intended · +5/−3 inherited · pass=0 &nbsp;|&nbsp; BZ: +10/−5 · 3 attempts</span>
+  </div>
+</div>
+
+<script>
+let ws, timerInt=null, revealInt=null, wbShown=false, lastSplashKey='', anticipInt=null;
+let heartbeatInt=null, lastPong=Date.now();
+
+function $(id){return document.getElementById(id);}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function show(id){const e=$(id);if(e)e.style.display='flex';}
+function hide(id){const e=$(id);if(e)e.style.display='none';}
+function showB(id){const e=$(id);if(e)e.style.display='block';}
+function setStatus(t){$('status-msg').textContent=t;}
+
+fetch('/ip').then(r=>r.json()).then(d=>{
+  const url='http://'+d.ip+':'+d.port+'/join';
+  $('lobby-url').textContent=url; $('pre-url').textContent=url;
+});
+
+function connectWS () {
+  if (ws && ws.readyState === WebSocket.OPEN) return;
+  ws = new WebSocket('ws://'+location.host);
+  ws.onopen = () => {
+    ws.send(JSON.stringify({type:'identify_display'}));
+    startHeartbeat();
+  };
+  ws.onmessage = e => {
+    const msg = JSON.parse(e.data);
+    if (msg.type === 'pong') { lastPong = Date.now(); return; }
+    handle(msg);
+  };
+  ws.onclose = () => {
+    stopHeartbeat();
+    setTimeout(connectWS, 2000);
+  };
+}
+
+function startHeartbeat () {
+  stopHeartbeat();
+  heartbeatInt = setInterval(() => {
+    if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({type:'ping'}));
+    if (Date.now() - lastPong > 10000) { if(ws) ws.close(); }
+  }, 5000);
+}
+function stopHeartbeat () {
+  if (heartbeatInt) { clearInterval(heartbeatInt); heartbeatInt=null; }
+}
+
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({type:'identify_display'}));
+    } else {
+      connectWS();
+    }
+  }
+});
+
+connectWS();
+
+function handle(msg){
+  if(msg.type!=='display_state') return;
+  renderScores(msg);
+  renderOverlays(msg);
+  // Pause overlay
+  document.getElementById('pause-overlay').className=msg.paused?'show':'';
+  // Always set up underlying screen even when paused so resume is instant
+  renderPhase(msg);
+  if(msg.splashData) showSplash(msg.splashData);
+  else hideSplash();
+}
+
+// ── OVERLAYS ──────────────────────────────────────────────────
+function renderOverlays(s){
+  const pre=$('pre-banner'), wb=$('wb');
+  updateChips(s);
+  if(s.phase==='lobby'){pre.style.display='flex';wb.style.display='none';}
+  else if(s.phase==='starting'){pre.style.display='none';if(!wbShown){wbShown=true;showWB(wb);}}
+  else{pre.style.display='none';if(!wb.dataset.active)wb.style.display='none';}
+}
+function updateChips(s){
+  const html=Object.values(s.teams||{}).length
+    ?Object.values(s.teams).map(t=>'<div style="padding:6px 16px;border-radius:20px;background:#ffffff12;border:1px solid #ffffff20;font-size:14px;font-weight:500;color:#E2DDC7">'+esc(t.name)+'</div>').join('')
+    :'<span style="font-size:14px;color:#444">No teams joined yet…</span>';
+  $('pre-chips').innerHTML=html; $('lobby-chips').innerHTML=html;
+}
+function showWB(el){
+  el.style.display='flex';el.style.opacity='1';el.dataset.active='1';
+  setTimeout(()=>{
+    ['wb-yr','wb-wlc','wb-hre','wb-quiz','wb-tag','wb-date','wb-click'].forEach(id=>$(id).classList.add('in'));
+    $('wb-line').style.width='380px';
+  },300);
+  function dismiss(){el.style.transition='opacity .7s';el.style.opacity='0';setTimeout(()=>{el.style.display='none';el.dataset.active='';},750);el.removeEventListener('click',dismiss);}
+  el.addEventListener('click',dismiss);
+  setTimeout(()=>{if(el.dataset.active)el.click();},30000);
+}
+
+// ── PHASE RENDER ──────────────────────────────────────────────
+// Bug 4 fix: NEVER silently exit — every code path shows a screen
+function renderPhase(s){
+  // Clear all screens first
+  hide('lobby'); hide('standby'); hide('q-area'); hide('reveal-screen');
+  $('rr-complete-screen').style.display='none';
+  $('bz-trans-screen').style.display='none';
+  $('finale-screen').style.display='none';
+  $('answered-hold').style.display='none';
+  $('eligibility-row').style.display='none';
+  $('bz-anticip-overlay').className='';   // hide overlay
+  $('bz-reopen-overlay').className='';    // hide overlay
+
+  updateHdrBadges(s);
+
+  const p=s.phase;
+
+  if(p==='lobby'||p==='starting'){
+    show('lobby'); stopTimer(); stopRevealCd();
+    setStatus('Waiting for host to start…'); return;
+  }
+
+  // Bug 8 fix: dedicated standby instead of lobby for mid-event setup phases
+  if(p==='rr_setup'){
+    show('standby');
+    $('standby-round').textContent='Round Robin';
+    $('standby-heading').textContent='Round Robin — Preparing…';
+    $('standby-msg').textContent='The host is loading the first question. Stand by — it will appear here shortly.';
+    setStatus('Host is preparing Round Robin'); return;
+  }
+  if(p==='bz_setup'){
+    show('standby');
+    $('standby-round').textContent='⚡ Buzzer Round';
+    $('standby-heading').textContent='Buzzer Round — Stand By';
+    $('standby-msg').textContent='The host is preparing the first Buzzer Round question. Get ready!';
+    setStatus('Host is preparing Buzzer Round'); return;
+  }
+
+  if(p==='rr_complete'){renderRRComplete(s); return;}
+  if(p==='bz_transition'){$('bz-trans-screen').style.display='flex';setStatus('');return;}
+  if(p==='finale'||p==='bz_complete'){renderFinale(s);return;}
+
+  // RR anticipation — show standby, clear question text so old Q never flashes
+  if(s.anticip){
+    show('standby');
+    $('standby-round').textContent='Round Robin · Q'+s.r1Count+' of '+s.r1Total;
+    $('standby-heading').textContent='Next question incoming…';
+    $('standby-msg').textContent='';
+    // Clear question text client-side to prevent old question flashing
+    $('q-text').textContent='';
+    ['A','B','C','D'].forEach(l=>{ $('ot-'+l).textContent=''; $('opt-'+l).className='opt'; });
+    stopTimer(); stopRevealCd(); return;
+  }
+
+  // Answer reveal screens
+  if((p==='rr_reveal_answer'||p==='bz_reveal_answer')&&s.revealData){
+    show('reveal-screen');
+    $('reveal-q').textContent=s.revealData.question;
+    $('reveal-correct').textContent=s.revealData.correct+' — '+s.revealData.answerText;
+    stopTimer(); stopRevealCd();
+    setStatus('Correct answer revealed'); return;
+  }
+
+  // All question-area phases — question always visible
+  const qPhases=['rr_answering','rr_answered','rr_reveal','rr_reveal_answer',
+                 'bz_anticip','bz_ready','bz_answering','bz_answered','bz_reveal',
+                 'bz_reveal_answer','bz_reopen','tiebreaker'];
+  if(qPhases.includes(p)){
+    renderQArea(s); return;
+  }
+
+  // Fallback — should never reach here, but show standby to avoid blank screen
+  show('standby');
+  $('standby-round').textContent='HRE Quiz';
+  $('standby-heading').textContent='Stand by…';
+  $('standby-msg').textContent='';
+  setStatus('');
+}
+
+function renderQArea(s){
+  show('q-area');
+  const p=s.phase;
+  if(!s.currentQ) return;
+
+  $('q-text').textContent=s.currentQ.question;
+
+  // Options — Bug 5 fix: correct parentheses
+  ['A','B','C','D'].forEach(l=>{
+    $('ot-'+l).textContent=s.currentQ.options[l];
+    const tile=$('opt-'+l);
+    tile.className='opt';
+    if(s.revealData&&(p==='rr_reveal_answer'||p==='bz_reveal_answer')){
+      if(l===s.revealData.correct) tile.classList.add('correct');
+      else tile.classList.add('fade');
+    }
+  });
+
+  // Whose turn label
+  const wt=$('whose-turn'), ab=$('attempt-badge');
+  if(s.activeRound===1&&s.teamOrder?.length){
+    const intId=s.teamOrder[s.currentQuestionTeam];
+    const curId=s.teamOrder[s.currentPasser];
+    wt.style.display='inline-block';
+    wt.textContent=intId===curId?"🎯 "+(s.teams[intId]?.name||'')+"'s turn"
+      :'🎯 Intended: '+(s.teams[intId]?.name||'')+' → Now: '+(s.teams[curId]?.name||'');
+    ab.style.display='none';
+  }else{
+    wt.style.display='none';
+    if(s.bzAttempt>0){ab.style.display='inline-block';ab.textContent='Attempt '+s.bzAttempt+' of 3';}
+    else{ab.style.display='none';}
+  }
+
+  // Bug 2 fix: bz_anticip shows countdown as overlay on question
+  if(p==='bz_anticip'){
+    $('bz-anticip-overlay').className='show';
+    $('bz-anticip-num').textContent=s.bzCountdown>0?s.bzCountdown:'GO!';
+  }
+
+  // bz_reopen shows reopen overlay
+  if(p==='bz_reopen'){
+    $('bz-reopen-overlay').className='show';
+    $('rol-label').textContent='Attempt '+(s.bzAttempt+1)+' of 3 — buzzers reopen in';
+    $('bz-reopen-num').textContent=s.bzCountdown;
+  }
+
+  // Answered holding screen
+  // Bug 6 fix: use bzAnsweringTeamName which is captured before bzActiveAnswerer is nulled
+  const isHolding=(p==='rr_answered'||p==='bz_answered');
+  if(isHolding){
+    $('answered-hold').style.display='flex';
+    let nm='Team';
+    if(p==='rr_answered') nm=s.teams[s.teamOrder[s.currentPasser]]?.name||'Team';
+    else if(p==='bz_answered') nm=s.bzAnsweringTeamName||'Team';
+    $('ah-name').textContent=nm;
+    startRevealCd(3);
+    hide('timer-wrap'); hide('q-status');
+  }else{
+    $('answered-hold').style.display='none';
+    showB('timer-wrap'); showB('q-status');
+  }
+
+  // Eligibility row (BZ only)
+  if(s.activeRound===2&&s.teamOrder?.length) renderEligibility(s);
+
+  // Bug 3 fix: show timer for bz_ready (buzzer expiry) AND answering phases
+  if(s.timerEnd&&(p==='rr_answering'||p==='bz_answering'||p==='bz_ready')){
+    const total = (p==='bz_ready'||p==='bz_answering') ? 30 : (s.currentQ?.timeout||45);
+    startTimerDisplay(s.timerEnd, total);
+  }else if(!isHolding){stopTimer();resetTimerBar();}
+
+  // Status
+  const stMap={
+    rr_answering:    ()=>(s.teams[s.teamOrder?.[s.currentPasser]]?.name||'')+' is answering…',
+    rr_answered:     ()=>'Answered — revealing in 3…',
+    rr_reveal:       ()=>s.splashData?.type==='pass'?'Passed — moving to next team'
+                        :s.splashData?.type==='timeout_pass'?'Time\'s up — moving to next team'
+                        :'Checking answer…',
+    bz_anticip:      ()=>'Read the question — buzzers open in '+s.bzCountdown+'s!',
+    bz_ready:        ()=>'BUZZERS OPEN — Attempt '+s.bzAttempt+' of 3 — first to buzz gets the slot!',
+    bz_answering:    ()=>(s.bzAnsweringTeamName||'')+' is answering…',
+    bz_answered:     ()=>'Answered — revealing in 3…',
+    bz_reveal:       ()=>'Checking answer…',
+    bz_reopen:       ()=>'Attempt '+(s.bzAttempt+1)+' of 3 — buzzers reopen in '+s.bzCountdown+'s',
+    tiebreaker:      ()=>'TIEBREAKER — buzz in!'
+  };
+  $('q-status').textContent=(stMap[p]&&stMap[p]())||'';
+}
+
+function renderEligibility(s){
+  const row=$('eligibility-row');
+  if(!s.teamOrder?.length){row.style.display='none';return;}
+  row.style.display='flex';
+  row.innerHTML=s.teamOrder.map(id=>{
+    const locked=s.bzLockedTeams?.includes(id);
+    return '<div class="elig-chip '+(locked?'locked':'eligible')+'">'+esc(s.teams[id]?.name||id)+(locked?' 🔒':'')+'</div>';
+  }).join('');
+}
+
+// ── SCORES ────────────────────────────────────────────────────
+function renderScores(s){
+  const currentId=s.teamOrder?.[s.currentPasser];
+  const sorted=Object.entries(s.scores||{})
+    .map(([id,score])=>({id,score,name:s.teams[id]?.name||id,connected:s.teams[id]?.connected}))
+    .sort((a,b)=>b.score-a.score);
+  $('score-list').innerHTML=sorted.map((t,i)=>`
+    <div class="srow ${i===0&&sorted.length>1?'lead':''} ${t.id===currentId&&s.activeRound===1?'active-turn':''}">
+      <span class="sr-rank">#${i+1}</span>
+      <span class="dot ${t.connected?'':'off'}"></span>
+      <span class="sr-name">${esc(t.name)}</span>
+      ${t.id===currentId&&s.activeRound===1?'<span class="turn-arrow">▶</span>':''}
+      <span class="sr-score ${t.score>0?'pos':t.score<0?'neg':'zer'}">${t.score}</span>
+    </div>`).join('');
+}
+
+// ── RR COMPLETE ───────────────────────────────────────────────
+function renderRRComplete(s){
+  $('rr-complete-screen').style.display='flex';
+  const sorted=Object.entries(s.scores||{}).map(([id,sc])=>({id,sc,name:s.teams[id]?.name||id})).sort((a,b)=>b.sc-a.sc);
+  $('rrc-board').innerHTML=sorted.map((t,i)=>`
+    <div class="rrc-row ${i===0?'top':''}">
+      <span class="rrc-rank">${i===0?'🏅':'#'+(i+1)}</span>
+      <span class="rrc-name ${i===0?'lead':''}">${esc(t.name)}</span>
+      <span class="rrc-score ${t.sc>0?'pos':t.sc<0?'neg':'zer'}">${t.sc}</span>
+    </div>`).join('');
+  setStatus('');
+}
+
+// ── FINALE ────────────────────────────────────────────────────
+function renderFinale(s){
+  $('finale-screen').style.display='flex';
+  const sorted=Object.entries(s.scores||{}).map(([id,sc])=>({id,sc,name:s.teams[id]?.name||id})).sort((a,b)=>b.sc-a.sc);
+  const topScore=sorted[0]?.sc, tied=sorted.filter(t=>t.sc===topScore).length>1;
+  $('fn-board').innerHTML=sorted.map((t,i)=>{
+    const win=i===0&&!tied;
+    return `<div class="fn-row ${win?'winner':''}">
+      <span class="fn-rank">${win?'🏆':'#'+(i+1)}</span>
+      <span class="fn-name ${win?'win':''}">${esc(t.name)}${win?' 🎉':''}</span>
+      <span class="fn-score ${win?'win':t.sc>0?'pos':t.sc<0?'neg':'zer'}">${t.sc}</span>
+    </div>`;
+  }).join('');
+  $('tb-btn').style.display=tied?'block':'none';
+  spawnFinaleConfetti();
+  setStatus('');
+}
+
+function spawnFinaleConfetti(){
+  const el=$('finale-screen');
+  const colors=['#EE963F','#1D9E75','#5DCAA5','#fff','#FAC775','#E2DDC7'];
+  for(let i=0;i<120;i++){
+    const p=document.createElement('div');const sz=6+Math.random()*12;
+    p.className='cp';
+    p.style.cssText=`width:${sz}px;height:${sz*(0.4+Math.random()*.6)}px;background:${colors[Math.floor(Math.random()*colors.length)]};left:${Math.random()*100}%;top:-10px;animation-duration:${2+Math.random()*2}s;animation-delay:${Math.random()*.8}s;transform:rotate(${Math.random()*360}deg)`;
+    el.appendChild(p);
+  }
+}
+
+// ── HDR BADGES ────────────────────────────────────────────────
+function updateHdrBadges(s){
+  const hr=$('hdr-round'),hq=$('hdr-q'),hc=$('hdr-cat'),hd=$('hdr-diff');
+  if(s.activeRound===1){hr.className='round-badge rr-badge';hr.textContent='Round Robin';hr.style.display='inline-block';hq.textContent='Q'+s.r1Count+' of '+s.r1Total;}
+  else if(s.activeRound===2){hr.className='round-badge bz-badge';hr.textContent='Buzzer Round';hr.style.display='inline-block';hq.textContent='Q'+s.r2Count+' of '+s.r2Total;}
+  else{hr.style.display='none';hq.textContent='';}
+  if(s.currentQ){hc.textContent=s.currentQ.category;hc.style.display='inline-block';hd.textContent=s.currentQ.difficulty;hd.className='diff-'+s.currentQ.difficulty;hd.style.display='inline-block';}
+  else{hc.style.display='none';hd.style.display='none';}
+}
+
+// ── TIMERS ────────────────────────────────────────────────────
+function startTimerDisplay(end,total){
+  stopTimer();
+  const bar=$('timer-bar');
+  timerInt=setInterval(()=>{
+    const rem=Math.max(0,(end-Date.now())/1000);
+    bar.style.width=(rem/total*100)+'%';
+    bar.classList.toggle('urgent',rem/total<0.25);
+    if(rem<=0)stopTimer();
+  },100);
+}
+function stopTimer(){if(timerInt){clearInterval(timerInt);timerInt=null;}}
+function resetTimerBar(){const b=$('timer-bar');b.style.width='100%';b.classList.remove('urgent');}
+function startRevealCd(secs){
+  stopRevealCd();
+  const el=$('reveal-cd');el.textContent=secs;let n=secs;
+  revealInt=setInterval(()=>{n--;if(n<=0){stopRevealCd();el.textContent='';}else el.textContent=n;},1000);
+}
+function stopRevealCd(){if(revealInt){clearInterval(revealInt);revealInt=null;}}
+
+// ── SPLASH ────────────────────────────────────────────────────
+function showSplash(data){
+  const key=data.type+(data.teamName||'')+(data.points||'');
+  if(lastSplashKey===key)return;
+  lastSplashKey=key;
+  const el=$('splash');
+  el.className=data.type;el.style.display='flex';
+  const ptsMap={correct:'+'+data.points,wrong:'−'+Math.abs(data.points||5),timeout_bz:'TIME OUT −5',pass:'PASS',timeout_pass:"TIME'S UP",no_buzz:'NO BUZZ'};
+  $('sp-pts').textContent=ptsMap[data.type]||'';
+  $('sp-team').textContent=data.teamName||'';
+  const subMap={pass:'→ '+(data.nextTeam||'next team'),timeout_pass:'→ '+(data.nextTeam||'next team'),timeout_bz:'−5 pts · slot lost',no_buzz:data.message||'',wrong:'',correct:''};
+  $('sp-sub').textContent=subMap[data.type]||'';
+  const ans=$('sp-ans');
+  if(data.type==='correct'&&data.answer){ans.textContent=data.correct+' — '+data.answer;ans.style.display='block';}
+  else{ans.style.display='none';}
+  const sw=$('sw');sw.style.cssText='';void sw.offsetWidth;
+  const swColor={correct:'#1D9E7555',wrong:'#E24B4A55',timeout_bz:'#E24B4A55',pass:'#EF9F2755',timeout_pass:'#EF9F2755',no_buzz:'#55555555'};
+  sw.style.cssText='border:3px solid '+(swColor[data.type]||'#55555555')+';animation:sw-exp .65s ease-out forwards;position:absolute;border-radius:50%';
+  spawnParticles(data.type);
+}
+function hideSplash(){
+  if(!lastSplashKey)return;
+  lastSplashKey='';
+  $('splash').style.display='none';$('splash').className='';clearParticles();
+}
+function spawnParticles(type){
+  clearParticles();
+  const el=$('splash');
+  const colMap={correct:['#1D9E75','#5DCAA5','#EE963F','#fff','#FAC775'],wrong:['#7a1515','#A32D2D','#E24B4A','#500000'],timeout_bz:['#7a1515','#A32D2D','#E24B4A'],pass:['#EF9F27','#FAC775','#BA7517','#fff'],timeout_pass:['#EF9F27','#FAC775'],no_buzz:['#444','#666','#888']};
+  const colors=colMap[type]||colMap.pass;const cnt=type==='correct'?90:35;
+  for(let i=0;i<cnt;i++){
+    const p=document.createElement('div');const sz=5+Math.random()*10;const cl=colors[Math.floor(Math.random()*colors.length)];
+    if(type==='correct'||type==='pass'||type==='timeout_pass'){
+      p.className='cp';p.style.cssText=`width:${sz}px;height:${sz*(0.4+Math.random()*.6)}px;background:${cl};left:${Math.random()*100}%;top:-10px;animation-duration:${1.5+Math.random()*1.5}s;animation-delay:${Math.random()*.6}s;transform:rotate(${Math.random()*360}deg)`;
+    }else{
+      p.className='dp';const dx=(Math.random()-.5)*320;
+      p.style.cssText=`width:${sz}px;height:${sz}px;background:${cl};left:calc(50% + ${(Math.random()-.5)*220}px);top:calc(50% + ${(Math.random()-.5)*120}px);--dx:${dx}px;animation-duration:${1.5+Math.random()*1.5}s;animation-delay:${Math.random()*.5}s`;
+    }
+    el.appendChild(p);
+  }
+}
+function clearParticles(){document.querySelectorAll('.cp,.dp').forEach(p=>p.remove());}
+
+$('tb-btn').onclick=()=>ws.send(JSON.stringify({type:'start_tiebreaker'}));
+</script>
+</body>
+</html>

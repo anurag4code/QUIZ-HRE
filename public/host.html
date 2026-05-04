@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HRE Quiz — Host Panel</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{font-family:'Segoe UI',system-ui,sans-serif;background:#0f1117;color:#e2ddc7;height:100vh;overflow:hidden}
+body{display:grid;grid-template-columns:300px 1fr;grid-template-rows:52px 1fr}
+#hdr{grid-column:1/3;background:#202338;border-bottom:2px solid #EE963F;display:flex;align-items:center;justify-content:space-between;padding:0 20px;gap:12px}
+#hdr h1{font-size:16px;color:#EE963F;font-weight:700;flex-shrink:0}
+#hdr-mid{display:flex;align-items:center;gap:8px;flex:1;justify-content:center}
+#conn{font-size:12px;color:#555;flex-shrink:0}#conn.ok{color:#5DCAA5}
+
+/* PAUSE BUTTON — always visible in header */
+#btn-pause{padding:6px 16px;border-radius:8px;border:1px solid #EF9F2744;background:#EF9F2711;color:#EF9F27;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;flex-shrink:0;display:none}
+#btn-pause:hover{background:#EF9F2722}
+#btn-pause.paused{background:#1D9E7522;border-color:#1D9E7544;color:#5DCAA5}
+#pause-indicator{font-size:12px;font-weight:700;color:#EF9F27;background:#EF9F2715;border:1px solid #EF9F2744;padding:4px 12px;border-radius:16px;display:none}
+#pause-indicator.show{display:inline-block}
+
+#left{background:#161b29;border-right:1px solid #ffffff12;padding:14px 12px;overflow-y:auto;display:flex;flex-direction:column;gap:10px}
+#right{display:flex;flex-direction:column;overflow:hidden}
+
+/* TABS */
+#tab-bar{display:flex;background:#161b29;border-bottom:1px solid #ffffff12;flex-shrink:0}
+.tab{flex:1;padding:10px 8px;font-size:12px;font-weight:600;text-align:center;cursor:pointer;color:#555;border-bottom:2px solid transparent;transition:all .15s;letter-spacing:.04em;text-transform:uppercase}
+.tab:hover{color:#aaa}
+.tab.active{color:#EE963F;border-bottom-color:#EE963F;background:#EE963F08}
+#tab-content{flex:1;overflow-y:auto;padding:14px 16px}
+.tab-panel{display:none}.tab-panel.active{display:block}
+
+/* STATUS */
+#status-card{background:#202338;border:2px solid #EE963F55;border-radius:12px;padding:14px;margin-bottom:10px}
+#status-card h2{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:#555;margin-bottom:6px}
+#big-status{font-size:16px;font-weight:700;color:#EE963F;line-height:1.4;min-height:46px}
+#timer-val{font-size:28px;font-weight:700;color:#EE963F;margin-top:5px;display:none;text-align:center}
+#timer-val.urgent{color:#E24B4A}
+
+.card{background:#1a2030;border:1px solid #ffffff12;border-radius:10px;padding:12px 14px;margin-bottom:10px}
+.card h2{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:#444;margin-bottom:8px}
+.btn{width:100%;padding:8px 12px;border-radius:7px;border:1px solid #ffffff20;background:#ffffff08;color:#e2ddc7;font-size:13px;cursor:pointer;font-family:inherit;transition:background .15s;text-align:center}
+.btn:hover:not(:disabled){background:#ffffff18}.btn:active:not(:disabled){transform:scale(.98)}.btn:disabled{opacity:.25;cursor:not-allowed}
+.btn.primary{background:#EE963F;border-color:#EE963F;color:#fff;font-weight:700}.btn.primary:hover:not(:disabled){background:#d4852e}
+.btn.rr{background:#185FA533;border-color:#378ADD;color:#85B7EB;font-weight:600}
+.btn.bz{background:#EE963F22;border-color:#EE963F;color:#EE963F;font-weight:600}
+.btn.success{background:#0F6E5633;border-color:#1D9E75;color:#5DCAA5;font-weight:700;font-size:15px}.btn.success:hover:not(:disabled){background:#0F6E5666}
+.btn.danger{background:#A32D2D33;border-color:#E24B4A;color:#F09595;font-weight:700;font-size:15px}.btn.danger:hover:not(:disabled){background:#A32D2D66}
+.btn.advance{background:#1D9E7533;border-color:#1D9E75;color:#5DCAA5;font-weight:700}.btn.advance:hover:not(:disabled){background:#1D9E7566}
+.btn.sec{background:#ffffff08;border-color:#ffffff18;color:#888;font-size:12px}
+.btn.red{background:#3a1111;border-color:#7a2222;color:#F09595;font-size:12px}
+.btn.amber{background:#2a1f00;border-color:#85500B;color:#EF9F27;font-size:12px}.btn.amber:hover:not(:disabled){background:#3a2a00}
+.btn2{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.btn4{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:4px}
+.bstack{display:flex;flex-direction:column;gap:6px}
+select{width:100%;padding:7px 9px;border-radius:7px;border:1px solid #ffffff20;background:#0f1117;color:#e2ddc7;font-size:12px;font-family:inherit;margin-bottom:5px}
+select:focus{outline:none;border-color:#EE963F}
+input[type=number],input[type=text]{width:100%;padding:7px 10px;border-radius:7px;border:1px solid #ffffff20;background:#0f1117;color:#e2ddc7;font-size:13px;font-family:inherit}
+input:focus{outline:none;border-color:#EE963F}
+
+/* QUESTION */
+#q-text-host{background:#0f1117;border:1px solid #ffffff12;border-radius:7px;padding:9px;font-size:13px;line-height:1.5;color:#e2ddc7;min-height:44px;margin-bottom:5px}
+#q-meta-host{font-size:11px;color:#444;margin-bottom:4px}
+.aopt{display:flex;align-items:center;gap:7px;padding:6px 9px;border-radius:6px;border:1px solid #ffffff12;margin-bottom:3px;font-size:12px}
+.aopt .al{font-weight:700;color:#888;min-width:16px}
+
+/* RELAY */
+#relay-section{margin-top:7px;display:none}
+#relay-section .rh{font-size:10px;color:#555;text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px}
+.relay-btn{padding:7px 4px;border-radius:7px;border:1px solid #ffffff18;background:#ffffff06;color:#e2ddc7;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;transition:background .15s;text-align:center;word-break:break-word}
+.relay-btn:hover{background:#ffffff14}.relay-btn:active{transform:scale(.96)}
+#reveal-btn-wrap{margin-top:6px;display:none}
+#btn-hold-reveal{width:100%;padding:8px;border-radius:7px;border:1px solid #EE963F33;background:#EE963F0a;color:#777;font-size:11px;cursor:pointer;font-family:inherit;user-select:none}
+#btn-hold-reveal:active{background:#EE963F2a;color:#EE963F}
+#reveal-answer-text{display:none;padding:7px 10px;border-radius:6px;background:#EE963F1a;border:2px solid #EE963F;color:#EE963F;font-size:13px;font-weight:700;margin-top:5px;text-align:center}
+
+/* SCORES */
+.sentry{display:flex;align-items:center;gap:7px;padding:7px 10px;border-radius:8px;background:#ffffff08;border:1px solid #ffffff10;margin-bottom:4px}
+.sentry .srank{font-size:11px;color:#444;min-width:18px;font-weight:700}
+.sentry .sn{flex:1;font-size:13px;font-weight:500;color:#e2ddc7}
+.sentry .sv{font-size:18px;font-weight:800;min-width:40px;text-align:right}
+.sv.p{color:#5DCAA5}.sv.n{color:#F09595}.sv.z{color:#555}
+.sentry.turn{background:#185FA518;border-color:#378ADD44}
+.sentry.lead{background:#EE963F10;border-color:#EE963F2a}
+.intended-badge{font-size:10px;background:#185FA533;color:#85B7EB;border:1px solid #378ADD44;padding:2px 5px;border-radius:6px;margin-left:3px}
+
+/* TEAMS TAB */
+.team-row{display:flex;align-items:center;gap:7px;padding:8px 10px;border-radius:8px;background:#ffffff08;border:1px solid #ffffff10;margin-bottom:5px}
+.team-row.offline{background:#0f1117;border-color:#ffffff08;opacity:.7}
+.team-row.offline .tr-name{color:#555}
+.tr-status{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.tr-status.on{background:#5DCAA5}.tr-status.off{background:#E24B4A}
+.tr-name{flex:1;font-size:14px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tr-score{font-size:16px;font-weight:700;min-width:36px;text-align:right;flex-shrink:0}
+.tr-score.p{color:#5DCAA5}.tr-score.n{color:#F09595}.tr-score.z{color:#555}
+.tr-btns{display:flex;gap:4px;flex-shrink:0}
+.tr-btn{font-size:11px;padding:3px 7px;border-radius:5px;border:1px solid #ffffff15;background:#ffffff08;color:#aaa;cursor:pointer;font-family:inherit}
+.tr-btn:hover{background:#ffffff18}
+.tr-btn.code{border-color:#EF9F2744;color:#EF9F27}
+.tr-btn.remove{border-color:#F0959544;color:#F09595}
+.code-display{font-size:13px;background:#2a1f00;color:#EF9F27;border:1px solid #EF9F2733;border-radius:6px;padding:4px 10px;margin-top:3px;font-weight:700;letter-spacing:.12em;display:none}
+.code-display.show{display:block}
+.score-edit{display:none;gap:5px;margin-top:4px;align-items:center}
+.score-edit.show{display:flex}
+.score-edit input{width:70px;padding:4px 8px;font-size:13px;border-radius:6px;border:1px solid #EE963F44;background:#0f1117;color:#EE963F}
+.score-edit button{padding:4px 10px;border-radius:6px;border:1px solid #1D9E7544;background:#1D9E7511;color:#5DCAA5;font-size:11px;cursor:pointer;font-family:inherit}
+
+/* TEAM ORDER */
+.team-order-item{display:flex;align-items:center;gap:7px;padding:7px 9px;border-radius:7px;background:#ffffff08;border:1px solid #ffffff12;margin-bottom:4px;cursor:grab;user-select:none;font-size:13px}
+.team-order-item:active{cursor:grabbing;opacity:.8}
+.to-drag{font-size:15px;color:#444}
+.to-num{font-size:11px;color:#555;min-width:16px;font-weight:700}
+.to-name{flex:1;color:#e2ddc7;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.to-offline{font-size:10px;color:#555;margin-left:3px}
+.to-edit{font-size:11px;color:#378ADD;cursor:pointer;padding:2px 5px;border-radius:4px;border:1px solid #378ADD33}
+.to-remove{font-size:11px;color:#F09595;cursor:pointer;padding:2px 5px;border-radius:4px;border:1px solid #F0959533;display:none}
+
+/* ADD TEAM during pause */
+#add-team-section{display:none;padding:10px;background:#1a2030;border:1px solid #EF9F2733;border-radius:8px;margin-bottom:8px}
+#add-team-section h3{font-size:11px;color:#EF9F27;text-transform:uppercase;letter-spacing:.07em;margin-bottom:7px}
+#add-team-row{display:flex;gap:6px}
+#new-team-name{flex:1;padding:7px 10px;border-radius:7px;border:1px solid #EF9F2744;background:#0f1117;color:#e2ddc7;font-size:13px;font-family:inherit}
+#new-team-name:focus{outline:none;border-color:#EF9F27}
+#btn-add-team{padding:7px 12px;border-radius:7px;border:none;background:#EF9F27;color:#0f1117;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit}
+
+/* Cat rem */
+.crow{display:flex;justify-content:space-between;padding:3px 0;font-size:11px;border-bottom:1px solid #ffffff08}
+.crow:last-child{border:none}
+.cname{color:#777}.cval{font-weight:700;color:#EE963F}
+.hint{font-size:10px;color:#444;margin-top:3px}
+.sep{height:1px;background:#ffffff0f;margin:4px 0}
+.reduce-row{display:flex;gap:5px;align-items:center}
+.reduce-row input{flex:1}
+.locked-chip{font-size:11px;background:#A32D2D1a;color:#F09595;border:1px solid #A32D2D33;padding:2px 7px;border-radius:8px;margin:2px}
+</style>
+</head>
+<body>
+
+<div id="hdr">
+  <h1>HRE Quiz — Host</h1>
+  <div id="hdr-mid">
+    <span id="pause-indicator">⏸ PAUSED</span>
+    <button id="btn-pause" style="display:none">⏸ Pause</button>
+  </div>
+  <div style="display:flex;gap:8px;align-items:center">
+    <span id="backup-notice" style="display:none;font-size:11px;background:#2a1f00;color:#EF9F27;padding:3px 8px;border-radius:5px;border:1px solid #85500B33">Session found</span>
+    <span id="conn">Connecting…</span>
+  </div>
+</div>
+
+<div id="left">
+  <div id="status-card">
+    <h2>What's happening</h2>
+    <div id="big-status">Connecting…</div>
+    <div id="timer-val"></div>
+  </div>
+
+  <div class="card" id="event-card">
+    <h2>Event</h2>
+    <button class="btn primary" id="btn-start-quiz">Start Quiz (show welcome banner)</button>
+  </div>
+
+  <div class="card" id="rr-card" style="display:none">
+    <h2>Round Robin</h2>
+    <div class="bstack">
+      <select id="rr-cat-sel">
+        <option value="Mix">Mix (random)</option>
+        <option value="Structural Engineering">Structural Engineering</option>
+        <option value="ASCE / IBC Codes">ASCE / IBC Codes</option>
+        <option value="Famous Structures">Famous Structures</option>
+        <option value="Nepal Geography & Affairs">Nepal Geography &amp; Affairs</option>
+        <option value="Nepal Accounting & Taxation">Nepal Accounting &amp; Taxation</option>
+        <option value="General Knowledge">General Knowledge</option>
+      </select>
+      <button class="btn rr" id="btn-next-rr">Next Question</button>
+      <div class="sep"></div>
+      <button class="btn success" id="btn-rr-correct" disabled>✓ Correct</button>
+      <div class="btn2">
+        <button class="btn danger" id="btn-rr-wrong" disabled>✗ Wrong</button>
+        <button class="btn sec"   id="btn-rr-pass"  disabled>→ Pass</button>
+      </div>
+      <button class="btn sec" id="btn-rr-skip" disabled>Skip Timer</button>
+    </div>
+  </div>
+
+  <div class="card" id="bz-card" style="display:none">
+    <h2>Buzzer Round</h2>
+    <div class="bstack">
+      <select id="bz-cat-sel">
+        <option value="Mix">Mix (random)</option>
+        <option value="Structural Engineering">Structural Engineering</option>
+        <option value="ASCE / IBC Codes">ASCE / IBC Codes</option>
+        <option value="Famous Structures">Famous Structures</option>
+        <option value="Nepal Geography & Affairs">Nepal Geography &amp; Affairs</option>
+        <option value="Nepal Accounting & Taxation">Nepal Accounting &amp; Taxation</option>
+        <option value="General Knowledge">General Knowledge</option>
+      </select>
+      <button class="btn bz" id="btn-next-bz">Next Question (auto-countdown)</button>
+      <div class="sep"></div>
+      <button class="btn success" id="btn-bz-correct" disabled>✓ Correct +10</button>
+      <button class="btn danger"  id="btn-bz-wrong"   disabled>✗ Wrong / Timeout −5</button>
+      <button class="btn sec"     id="btn-bz-skip"    disabled>Skip Answer Timer</button>
+    </div>
+  </div>
+
+  <div class="card" id="end-card" style="display:none">
+    <button class="btn" id="btn-end-event">End Event &amp; Show Final Leaderboard</button>
+  </div>
+
+  <div class="card" id="bz-complete-card" style="display:none">
+    <h2>Buzzer Round Complete</h2>
+    <button class="btn advance" id="btn-advance-finale">Show Final Leaderboard →</button>
+  </div>
+</div>
+
+<div id="right">
+  <div id="tab-bar">
+    <div class="tab active" data-tab="controls">Controls</div>
+    <div class="tab" data-tab="teams">Teams</div>
+    <div class="tab" data-tab="settings">Settings</div>
+  </div>
+
+  <div id="tab-content">
+
+    <!-- ── CONTROLS TAB ── -->
+    <div class="tab-panel active" id="tab-controls">
+
+      <div class="card" id="team-order-card">
+        <h2>Team Order (drag to reorder before locking)</h2>
+        <div id="team-order-list"></div>
+        <div class="btn2" style="margin-top:7px">
+          <button class="btn rr" id="btn-lock-order">Lock Order &amp; Start Round Robin</button>
+          <div style="font-size:11px;color:#555;display:flex;align-items:center;padding:4px">Drag to reorder</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Current Question (no answers shown)</h2>
+        <div id="q-meta-host"></div>
+        <div id="q-text-host">No question loaded.</div>
+        <div id="q-opts-host"></div>
+        <div id="intended-display" style="font-size:11px;color:#378ADD;margin-top:4px"></div>
+        <div id="relay-section">
+          <div class="rh">Relay team's verbal answer:</div>
+          <div class="btn4" id="relay-btns"></div>
+          <div id="reveal-btn-wrap">
+            <button id="btn-hold-reveal">Hold to reveal correct answer (private)</button>
+            <div id="reveal-answer-text"></div>
+          </div>
+        </div>
+        <div id="bz-locked-display" style="margin-top:5px;display:none">
+          <div style="font-size:10px;color:#555;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px">Locked this question</div>
+          <div id="locked-chips"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Live Scores</h2>
+        <div id="score-list"></div>
+      </div>
+
+    </div>
+
+    <!-- ── TEAMS TAB ── -->
+    <div class="tab-panel" id="tab-teams">
+
+      <div id="add-team-section">
+        <h3>Add Team (quiz is paused)</h3>
+        <div id="add-team-row">
+          <input type="text" id="new-team-name" placeholder="New team name…" maxlength="20">
+          <button id="btn-add-team">Add</button>
+        </div>
+      </div>
+
+      <div style="font-size:11px;color:#555;margin-bottom:8px">
+        Click Rejoin Code to generate a 4-digit code for an offline team. Click Score to manually adjust during pause.
+      </div>
+      <div id="team-list-full"></div>
+
+    </div>
+
+    <!-- ── SETTINGS TAB ── -->
+    <div class="tab-panel" id="tab-settings">
+
+      <div class="card">
+        <h2>Reduce Question Count</h2>
+        <div style="font-size:12px;color:#666;margin-bottom:7px">Round Robin (current: <span id="r1-info">40</span>)</div>
+        <div class="reduce-row" style="margin-bottom:10px">
+          <input type="number" id="rr-total-inp" min="1" max="40" placeholder="e.g. 30">
+          <button class="btn sec" id="btn-rr-reduce" style="width:auto;padding:7px 10px">Set</button>
+        </div>
+        <div style="font-size:12px;color:#666;margin-bottom:7px">Buzzer Round (current: <span id="r2-info">20</span>)</div>
+        <div class="reduce-row">
+          <input type="number" id="bz-total-inp" min="1" max="20" placeholder="e.g. 15">
+          <button class="btn sec" id="btn-bz-reduce" style="width:auto;padding:7px 10px">Set</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Questions Remaining</h2>
+        <div id="cat-rem"></div>
+      </div>
+
+      <div class="card">
+        <h2>Danger Zone</h2>
+        <button class="btn red" id="btn-reset-all">Full Reset — Clear Everything</button>
+        <div class="hint">Requires two confirmations. All laptops return to join screen.</div>
+      </div>
+
+    </div>
+
+  </div>
+</div>
+
+<script>
+const ws=new WebSocket('ws://'+location.host);
+ws.onopen=()=>{ws.send(JSON.stringify({type:'identify_host'}));$('conn').textContent='Connected';$('conn').className='ok';};
+ws.onmessage=e=>handle(JSON.parse(e.data));
+ws.onclose=()=>{$('conn').textContent='Disconnected — reload';$('conn').className='';};
+
+let timerInt=null, lastS={}, rrCompleteHandled=false;
+const rejoinCodeMap={};
+
+function $(id){return document.getElementById(id);}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function send(type,extra={}){ws.send(JSON.stringify({type,...extra}));}
+
+function handle(msg){
+  if(msg.type==='host_state'){
+    const prevPhase=lastS.phase;
+    lastS=msg;
+    render(msg);
+    if(msg.phase==='rr_complete'&&prevPhase!=='rr_complete'&&!rrCompleteHandled){
+      rrCompleteHandled=true;
+      setTimeout(()=>{
+        if(confirm('Round Robin complete!\n\nLeaderboard is on screen. Brief the audience, then click OK to advance.\n\n(Cancel to stay and advance manually)'))send('advance_to_bz');
+      },800);
+    }
+    if(msg.phase!=='rr_complete') rrCompleteHandled=false;
+  }
+  else if(msg.type==='error') alert(msg.message);
+  else if(msg.type==='backup_available') $('backup-notice').style.display='inline-block';
+  else if(msg.type==='rejoin_code'){
+    rejoinCodeMap[msg.teamId]=msg.code;
+    renderTeams(lastS);
+  }
+}
+
+function render(s){
+  renderPause(s); renderStatus(s); renderCards(s);
+  renderTeamOrder(s); renderQuestion(s); renderScores(s);
+  renderTeams(s); renderSettings(s); renderTimer(s);
+}
+
+// ── PAUSE ─────────────────────────────────────────────────────
+function renderPause(s){
+  const btn=$('btn-pause');
+  const ind=$('pause-indicator');
+  const inProgress=!['lobby','starting','rr_complete','bz_transition','bz_complete','finale'].includes(s.phase);
+  btn.style.display=inProgress?'block':'none';
+  if(s.paused){
+    btn.textContent='▶ Resume'; btn.className='paused';
+    ind.className='pause-indicator show';
+  }else{
+    btn.textContent='⏸ Pause'; btn.className='';
+    ind.className='pause-indicator';
+  }
+}
+
+// ── STATUS ────────────────────────────────────────────────────
+function renderStatus(s){
+  const p=s.phase, current=s.teams[s.teamOrder?.[s.currentPasser]]?.name||'',
+    active=s.bzAnsweringTeamName||s.teams[s.bzActiveAnswerer]?.name||'';
+  const msgs={
+    lobby:'Lobby — teams joining. Set order then lock.',
+    starting:'Welcome banner playing.',
+    rr_setup:'Load the first Round Robin question.',
+    rr_anticip:'Anticipation — question incoming.',
+    rr_answering:(s.paused?'PAUSED — ':'')+current+' is answering. Use relay buttons or mark below.',
+    rr_answered:'3-second reveal countdown playing.',
+    rr_reveal:s.splashData?.type==='pass'?current+' passed.':s.splashData?.type==='timeout_pass'?current+' timed out.':'Splash playing.',
+    rr_reveal_answer:'Answer shown. Click Next Question when ready.',
+    rr_complete:'Round Robin done! Leaderboard on screen.',
+    bz_transition:'Advancing to Buzzer Round…',
+    bz_setup:'Load the first Buzzer Round question.',
+    bz_anticip:(s.paused?'PAUSED — ':'')+'Prep countdown: '+s.bzCountdown+'s',
+    bz_ready:(s.paused?'PAUSED — ':'')+'BUZZERS OPEN — Attempt '+s.bzAttempt+' of 3',
+    bz_answering:(s.paused?'PAUSED — ':'')+active+' is answering.',
+    bz_answered:'Reveal countdown playing.',
+    bz_reveal:'Splash playing.',
+    bz_reveal_answer:'Answer shown. Click Next Question when ready.',
+    bz_reopen:'Reopening in '+s.bzCountdown+'s — Attempt '+(s.bzAttempt+1)+' of 3.',
+    bz_complete:'Buzzer Round done! Advance to leaderboard.',
+    finale:'Final leaderboard on screen.',
+    tiebreaker:(s.paused?'PAUSED — ':'')+'TIEBREAKER in progress.'
+  };
+  $('big-status').textContent=msgs[p]||p;
+}
+
+// ── CARDS ─────────────────────────────────────────────────────
+function renderCards(s){
+  const p=s.phase;
+  const rrActive=['rr_setup','rr_anticip','rr_answering','rr_answered','rr_reveal','rr_reveal_answer'].includes(p);
+  const bzActive=['bz_setup','bz_anticip','bz_ready','bz_answering','bz_answered','bz_reveal','bz_reveal_answer','bz_reopen','tiebreaker'].includes(p);
+  $('event-card').style.display=['lobby','starting'].includes(p)?'block':'none';
+  $('team-order-card').style.display=['lobby','starting','rr_setup'].includes(p)?'block':'none';
+  $('rr-card').style.display=rrActive?'block':'none';
+  $('bz-card').style.display=bzActive?'block':'none';
+  $('bz-complete-card').style.display=p==='bz_complete'?'block':'none';
+  $('end-card').style.display=bzActive?'block':'none';
+  const paused=s.paused;
+  $('btn-next-rr').disabled=!rrActive||['rr_answering','rr_anticip'].includes(p)||paused;
+  $('btn-rr-correct').disabled=p!=='rr_answering'||paused;
+  $('btn-rr-wrong').disabled=p!=='rr_answering'||paused;
+  $('btn-rr-pass').disabled=p!=='rr_answering'||paused;
+  $('btn-rr-skip').disabled=!s.timerEnd||p!=='rr_answering'||paused;
+  $('btn-next-bz').disabled=!bzActive||['bz_anticip','bz_ready','bz_answering','bz_reopen'].includes(p)||paused;
+  $('btn-bz-correct').disabled=!s.bzActiveAnswerer||p!=='bz_answering'||paused;
+  $('btn-bz-wrong').disabled=!s.bzActiveAnswerer||p!=='bz_answering'||paused;
+  $('btn-bz-skip').disabled=!s.timerEnd||p!=='bz_answering'||paused;
+}
+
+// ── TEAM ORDER (left panel / controls tab) ────────────────────
+function renderTeamOrder(s){
+  const list=$('team-order-list');
+  list.innerHTML='';
+  const midGame=!['lobby','starting','rr_setup'].includes(s.phase);
+  (s.teamOrder||[]).forEach((tid,i)=>{
+    const t=s.teams[tid]; if(!t) return;
+    const div=document.createElement('div');
+    div.className='team-order-item'; div.dataset.id=tid; div.draggable=!midGame;
+    div.innerHTML=`<span class="to-drag" style="${midGame?'opacity:.2':''}">☰</span>
+      <span class="to-num">${i+1}</span>
+      <span class="to-name">${esc(t.name)}${!t.connected?'<span class="to-offline">(offline)</span>':''}</span>
+      <span class="to-edit" onclick="editName('${tid}','${esc(t.name)}')">✎</span>
+      ${!midGame?`<span class="to-remove" style="display:inline-block" onclick="removeTeam('${tid}')">✕</span>`:''}`;
+    list.appendChild(div);
+  });
+  if(!midGame) initDrag();
+}
+
+function initDrag(){
+  const items=document.querySelectorAll('.team-order-item');let dragged=null;
+  items.forEach(item=>{
+    item.addEventListener('dragstart',()=>{dragged=item;item.style.opacity='.4';});
+    item.addEventListener('dragend',()=>{item.style.opacity='1';dragged=null;saveOrder();});
+    item.addEventListener('dragover',e=>{e.preventDefault();const r=item.getBoundingClientRect();item.parentNode.insertBefore(dragged,e.clientY<r.top+r.height/2?item:item.nextSibling);});
+  });
+}
+function saveOrder(){const ids=[...document.querySelectorAll('.team-order-item')].map(el=>el.dataset.id);send('update_team_order',{order:ids});}
+function editName(tid,cur){const n=prompt('New team name:',cur);if(n&&n.trim())send('rename_team',{teamId:tid,name:n.trim()});}
+function removeTeam(tid){if(confirm('Remove this team?'))send('remove_team',{teamId:tid});}
+function genRejoin(tid){send('generate_rejoin',{teamId:tid});}
+
+// ── FULL TEAMS TAB ────────────────────────────────────────────
+function renderTeams(s){
+  const midGame=!['lobby','starting','rr_setup','bz_setup','rr_complete','bz_complete'].includes(s.phase);
+  // Add team section — only when paused
+  $('add-team-section').style.display=s.paused?'block':'none';
+
+  const list=$('team-list-full');
+  list.innerHTML='';
+  const sorted=Object.entries(s.scores||{})
+    .map(([id,sc])=>({id,sc,t:s.teams[id]}))
+    .filter(x=>x.t)
+    .sort((a,b)=>b.sc-a.sc);
+
+  sorted.forEach(({id,sc,t})=>{
+    const code=rejoinCodeMap[id];
+    const div=document.createElement('div');
+    div.className='team-row'+(t.connected?'':' offline');
+    div.innerHTML=`
+      <div class="tr-status ${t.connected?'on':'off'}"></div>
+      <div class="tr-name">${esc(t.name)}</div>
+      <div class="tr-score ${sc>0?'p':sc<0?'n':'z'}">${sc}</div>
+      <div class="tr-btns">
+        <button class="tr-btn" onclick="editName('${id}','${esc(t.name)}')">✎ Rename</button>
+        ${!t.connected?`<button class="tr-btn code" onclick="genRejoin('${id}')">Code</button>`:''}
+        ${s.paused?`<button class="tr-btn code" onclick="showScoreEdit('${id}')">Score</button>`:''}
+        ${s.paused||!midGame?`<button class="tr-btn remove" onclick="removeTeam('${id}')">Remove</button>`:''}
+      </div>`;
+    if(code){
+      const cd=document.createElement('div');
+      cd.className='code-display show';
+      cd.textContent='Rejoin code: '+code+' (5 min · single use)';
+      div.appendChild(cd);
+    }
+    // Score edit row
+    const se=document.createElement('div');
+    se.className='score-edit'; se.id='score-edit-'+id;
+    se.innerHTML=`<input type="number" value="${sc}" id="score-inp-${id}"><button onclick="saveScore('${id}')">Save</button>`;
+    div.appendChild(se);
+    list.appendChild(div);
+  });
+
+  if(!sorted.length){
+    list.innerHTML='<div style="font-size:13px;color:#555;text-align:center;padding:20px">No teams yet.</div>';
+  }
+}
+
+function showScoreEdit(id){
+  const se=document.getElementById('score-edit-'+id);
+  if(!se) return;
+  se.classList.toggle('show');
+}
+function saveScore(id){
+  const inp=document.getElementById('score-inp-'+id);
+  if(!inp) return;
+  const v=parseInt(inp.value);
+  if(isNaN(v)) return;
+  send('set_score_override',{teamId:id,score:v});
+  const se=document.getElementById('score-edit-'+id);
+  if(se) se.classList.remove('show');
+}
+
+// ── QUESTION ─────────────────────────────────────────────────
+function renderQuestion(s){
+  const q=s.currentQ, isRRA=s.phase==='rr_answering';
+  if(!q){
+    $('q-text-host').textContent='No question loaded.';
+    $('q-opts-host').innerHTML='';$('q-meta-host').textContent='';
+    $('intended-display').textContent='';$('relay-section').style.display='none';
+    $('bz-locked-display').style.display='none'; return;
+  }
+  $('q-meta-host').textContent=q.category+' · '+q.difficulty+' · '+q.timeout+'s';
+  $('q-text-host').textContent=q.question;
+  $('q-opts-host').innerHTML=['A','B','C','D'].map(l=>`<div class="aopt"><span class="al">${l}</span><span>${esc(q.options[l])}</span></div>`).join('');
+  $('relay-section').style.display=isRRA?'block':'none';
+  if(isRRA){
+    $('relay-btns').innerHTML=['A','B','C','D'].map(l=>`<button class="relay-btn" onclick="hostRelay('${l}')">${l}: ${esc(q.options[l])}</button>`).join('');
+    $('reveal-btn-wrap').style.display='block';
+    $('reveal-answer-text').style.display='none';
+  }
+  if(s.teamOrder?.length&&s.activeRound===1){
+    const intId=s.teamOrder[s.currentQuestionTeam], curId=s.teamOrder[s.currentPasser];
+    $('intended-display').textContent='Intended: '+(s.teams[intId]?.name||'')+(intId!==curId?' → Currently: '+(s.teams[curId]?.name||''):'');
+  }else{$('intended-display').textContent='';}
+  if(s.activeRound===2&&s.bzLockedTeams?.length){
+    $('bz-locked-display').style.display='block';
+    $('locked-chips').innerHTML=s.bzLockedTeams.map(id=>`<span class="locked-chip">${esc(s.teams[id]?.name||id)}</span>`).join('');
+  }else{$('bz-locked-display').style.display='none';}
+}
+
+function hostRelay(letter){if(lastS.phase==='rr_answering')send('host_rr_submit',{answer:letter});}
+
+function setupHoldReveal(){
+  const btn=$('btn-hold-reveal'), txt=$('reveal-answer-text');
+  const show=()=>{
+    if(lastS.phase!=='rr_answering'||!lastS.currentQCorrect) return;
+    txt.textContent='✓ Correct: '+lastS.currentQCorrect+' — '+(lastS.currentQ?.options[lastS.currentQCorrect]||'');
+    txt.style.display='block';
+  };
+  const hide=()=>{txt.style.display='none';};
+  btn.addEventListener('mousedown',show);btn.addEventListener('touchstart',show,{passive:true});
+  btn.addEventListener('mouseup',hide);btn.addEventListener('mouseleave',hide);
+  btn.addEventListener('touchend',hide);btn.addEventListener('touchcancel',hide);
+}
+
+// ── SCORES ────────────────────────────────────────────────────
+function renderScores(s){
+  const currentId=s.teamOrder?.[s.currentPasser];
+  $('score-list').innerHTML=Object.entries(s.scores||{})
+    .map(([id,sc])=>({id,sc,name:s.teams[id]?.name||id}))
+    .sort((a,b)=>b.sc-a.sc)
+    .map((t,i)=>`<div class="sentry ${t.id===currentId&&s.activeRound===1?'turn':''} ${i===0?'lead':''}">
+      <span class="srank">#${i+1}</span>
+      <span class="sn">${esc(t.name)}${t.id===currentId&&s.activeRound===1?'<span class="intended-badge">▶</span>':''}</span>
+      <span class="sv ${t.sc>0?'p':t.sc<0?'n':'z'}">${t.sc}</span>
+    </div>`).join('');
+}
+
+// ── SETTINGS ─────────────────────────────────────────────────
+function renderSettings(s){
+  $('r1-info').textContent=s.r1Count+'/'+s.r1Total;
+  $('r2-info').textContent=s.r2Count+'/'+s.r2Total;
+  $('cat-rem').innerHTML=Object.entries(s.remainingCats||{}).map(([c,n])=>`<div class="crow"><span class="cname">${esc(c)}</span><span class="cval">${n}</span></div>`).join('');
+}
+
+function renderTimer(s){
+  const el=$('timer-val');
+  if(!s.timerEnd){el.style.display='none';stopTimer();return;}
+  el.style.display='block'; stopTimer();
+  timerInt=setInterval(()=>{
+    const r=Math.max(0,Math.ceil((s.timerEnd-Date.now())/1000));
+    el.textContent=r+'s'; el.className=r<=10?'urgent':'';
+    if(r<=0)stopTimer();
+  },250);
+}
+function stopTimer(){if(timerInt){clearInterval(timerInt);timerInt=null;}}
+
+// ── TABS ─────────────────────────────────────────────────────
+document.querySelectorAll('.tab').forEach(tab=>{
+  tab.onclick=()=>{
+    document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('tab-'+tab.dataset.tab)?.classList.add('active');
+  };
+});
+
+// ── BUTTON HANDLERS ───────────────────────────────────────────
+$('btn-pause').onclick=()=>send(lastS.paused?'resume_quiz':'pause_quiz');
+$('btn-start-quiz').onclick=()=>send('start_quiz');
+$('btn-lock-order').onclick=()=>{if(confirm('Lock team order and start Round Robin?'))send('start_rr');};
+$('btn-next-rr').onclick=()=>send('next_rr_question',{category:$('rr-cat-sel').value});
+$('btn-rr-correct').onclick=()=>send('rr_mark_correct');
+$('btn-rr-wrong').onclick=()=>send('rr_mark_wrong');
+$('btn-rr-pass').onclick=()=>send('rr_mark_pass');
+$('btn-rr-skip').onclick=()=>send('rr_skip_timer');
+$('btn-next-bz').onclick=()=>send('next_bz_question',{category:$('bz-cat-sel').value});
+$('btn-bz-correct').onclick=()=>send('bz_mark_correct');
+$('btn-bz-wrong').onclick=()=>send('bz_mark_wrong');
+$('btn-bz-skip').onclick=()=>send('bz_skip_timer');
+$('btn-end-event').onclick=()=>{if(confirm('End event?'))send('end_event');};
+$('btn-advance-finale').onclick=()=>send('advance_to_finale');
+$('btn-rr-reduce').onclick=()=>{
+  const v=parseInt($('rr-total-inp').value);if(!v||v<1)return;
+  if(!confirm('Reduce Round Robin to '+v+'?'))return;
+  send('set_r1_total',{total:v});$('rr-total-inp').value='';
+};
+$('btn-bz-reduce').onclick=()=>{
+  const v=parseInt($('bz-total-inp').value);if(!v||v<1)return;
+  if(!confirm('Reduce Buzzer Round to '+v+'?'))return;
+  send('set_r2_total',{total:v});$('bz-total-inp').value='';
+};
+$('btn-reset-all').onclick=()=>{
+  if(!confirm('FULL RESET: All teams, scores and progress erased. Continue?'))return;
+  if(!confirm('Last chance — cannot be undone. Proceed?'))return;
+  Object.keys(rejoinCodeMap).forEach(k=>delete rejoinCodeMap[k]);
+  send('reset_all');
+};
+$('btn-add-team').onclick=()=>{
+  const n=$('new-team-name').value.trim();
+  if(!n){alert('Enter a team name.');return;}
+  // Send as a fake join — server allows this during pause
+  // We need to use WS directly since the server identifies via identify_buzzer
+  ws.send(JSON.stringify({type:'identify_host_add_team',teamName:n}));
+  $('new-team-name').value='';
+};
+
+setupHoldReveal();
+</script>
+</body>
+</html>
