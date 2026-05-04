@@ -118,6 +118,23 @@ body{display:flex;flex-direction:column;overflow:hidden}
 .rv-label{font-size:12px;color:#EE963F;letter-spacing:.1em;text-transform:uppercase}
 .rv-correct{font-size:22px;font-weight:700;color:#1D9E75;text-align:center;background:#0F6E5622;border:2px solid #1D9E75;border-radius:10px;padding:12px 20px;width:100%}
 
+/* RF SCREENS */
+.rf-pill{background:#1D9E7522;color:#5DCAA5;border:1px solid #1D9E7544}
+#rf-screen{justify-content:flex-start;gap:12px;padding:20px 20px}
+.rf-round-badge{font-size:11px;font-weight:700;padding:3px 10px;border-radius:10px;text-transform:uppercase;letter-spacing:.05em;background:#1D9E7522;color:#5DCAA5;border:1px solid #1D9E7544}
+#rf-q-box{width:100%;background:#0f2318;border:2px solid #1D9E7555;border-radius:12px;padding:16px 20px}
+.rf-q-label{font-size:10px;color:#1D9E75;letter-spacing:.1em;text-transform:uppercase;margin-bottom:6px}
+#rf-q-text{font-size:18px;line-height:1.5;color:#fff;font-weight:500}
+#rf-pass-btn{width:100%;padding:13px;border-radius:10px;border:1px solid #1D9E7544;background:#1D9E7511;color:#5DCAA5;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;display:none}
+#rf-pass-btn:active:not(:disabled){transform:scale(.98)}
+#rf-pass-btn:disabled{opacity:.25;cursor:not-allowed}
+/* RF spectator */
+#rf-spectate-screen{justify-content:center;gap:16px}
+.rf-spec-label{font-size:13px;color:#555;text-align:center}
+.rf-spec-team{font-size:26px;font-weight:800;color:#1D9E75;text-align:center}
+.rf-spec-timer{font-size:72px;font-weight:900;color:#5DCAA5;line-height:1;text-align:center}
+.rf-spec-timer.urgent{color:#E24B4A}
+
 /* SPLASH */
 #splash-screen{display:none;justify-content:center;min-height:100%;padding:40px}
 #splash-screen.show{display:flex}
@@ -245,6 +262,31 @@ body{display:flex;flex-direction:column;overflow:hidden}
     <div style="font-size:13px;color:#555;text-align:center">Host will load the next question shortly</div>
   </div>
 
+  <!-- RF ACTIVE TEAM SCREEN -->
+  <div class="screen" id="rf-screen">
+    <div class="rf-round-badge">⚡ Rapid Fire — Your Turn!</div>
+    <div id="rf-q-box">
+      <div class="rf-q-label" id="rf-qnum">Question 1 of 6</div>
+      <div id="rf-q-text">Waiting for question…</div>
+    </div>
+    <div style="width:100%;display:flex;align-items:center;gap:10px" id="rf-timer-row">
+      <div class="timer-bar-wrap" style="flex:1"><div class="timer-bar" id="rf-timer-bar"></div></div>
+      <div class="timer-secs" id="rf-timer-secs">60</div>
+    </div>
+    <button id="rf-pass-btn">Pass — move to next question</button>
+    <div class="status-chip" id="rf-status-chip">Your turn — answer verbally!</div>
+  </div>
+
+  <!-- RF SPECTATOR SCREEN -->
+  <div class="screen" id="rf-spectate-screen">
+    <div class="rf-spec-label">⚡ Rapid Fire Round</div>
+    <div class="rf-spec-team" id="rf-spec-team">Team Falcon</div>
+    <div class="rf-spec-label">is answering…</div>
+    <div class="rf-spec-timer" id="rf-spec-secs">60</div>
+    <div class="timer-bar-wrap" style="width:100%;max-width:300px"><div class="timer-bar" id="rf-spec-bar"></div></div>
+    <div class="status-chip" id="rf-spec-chip">Watch the main screen!</div>
+  </div>
+
   <!-- SPLASH -->
   <div id="splash-screen">
     <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;width:100%">
@@ -260,7 +302,7 @@ body{display:flex;flex-direction:column;overflow:hidden}
 <script>
 // ── STATE ─────────────────────────────────────────────────────
 let myId='', myName='', ws;
-let timerInt=null, bzTimerInt=null, answered=false, buzzed=false;
+let timerInt=null, bzTimerInt=null, rfTimerInt=null, answered=false, buzzed=false;
 let lastIsRR=false, spaceActive=false;
 let heartbeatInt=null, lastPong=0;
 let optionsLocked=true; // options not interactive until explicitly unlocked
@@ -344,6 +386,10 @@ function handle(msg){
       lastIsRR=(msg.round===1);
       showAnswerOptions(msg);
       break;
+
+    case 'rf_your_turn':
+      showRFTurn(msg);
+      break;
   }
 }
 
@@ -382,6 +428,7 @@ function updateBar(s){
   const rp=$('sb-round-pill');
   if(s.activeRound===1){rp.className='round-pill rr-pill';rp.textContent='Round Robin';}
   else if(s.activeRound===2){rp.className='round-pill bz-pill';rp.textContent='Buzzer Round';}
+  else if(s.activeRound===3){rp.className='round-pill rf-pill';rp.textContent='⚡ Rapid Fire';}
   else{rp.textContent='';}
 }
 
@@ -401,12 +448,20 @@ function renderState(s){
     bz_transition:'⚡ Buzzer Round starting!',
     bz_setup:'Buzzer Round — host loading first question…',
     bz_complete:'Event ended — check the main screen!',
-    finale:'Event ended — check the main screen!'
+    finale:'Event ended — check the main screen!',
+    rf_assign:'⚡ Rapid Fire — set assignments being revealed…',
+    rf_reveal:'⚡ Rapid Fire — set assignments being revealed…',
+    rf_setup:'⚡ Rapid Fire is about to begin — watch the screen!'
   };
   if(waitTexts[p]){
     showScreen('wait-screen');
     $('wait-circle').textContent=s.paused?'⏸ Quiz paused':waitTexts[p];
     return;
+  }
+
+  // RF phases
+  if(['rf_active','rf_between','rf_complete'].includes(p)){
+    renderRFState(s); return;
   }
 
   // Reveal screen
@@ -649,6 +704,8 @@ function startBzTimer(end,total){
 }
 function stopBzTimer(){if(bzTimerInt){clearInterval(bzTimerInt);bzTimerInt=null;}}
 
+function stopRFTimer(){if(rfTimerInt){clearInterval(rfTimerInt);rfTimerInt=null;}}
+
 function lockOptions(){
   document.querySelectorAll('.opt-btn').forEach(b=>{
     b.disabled=true;b.classList.add('greyed');b.classList.remove('active-opt');b.style.pointerEvents='none';
@@ -656,11 +713,99 @@ function lockOptions(){
   $('pass-btn').disabled=true;
 }
 
+function startRFTimerBar(end,total,barId,secsId){
+  stopRFTimer();
+  rfTimerInt=setInterval(()=>{
+    const rem=Math.max(0,(end-Date.now())/1000);
+    const pct=rem/total*100;
+    $(barId).style.width=pct+'%';
+    const u=pct<17;
+    $(barId).className='timer-bar'+(u?' urgent':'');
+    if(secsId){
+      $(secsId).textContent=Math.ceil(rem);
+      $(secsId).className='timer-secs'+(u?' urgent':'');
+    }
+    if(rem<=0)stopRFTimer();
+  },100);
+}
+
+// Called when this team's RF turn message arrives
+function showRFTurn(msg){
+  showScreen('rf-screen');
+  $('rf-qnum').textContent='Question '+(msg.questionIdx+1)+' of 6';
+  $('rf-q-text').textContent=msg.question||'';
+  $('rf-pass-btn').style.display='block';
+  $('rf-pass-btn').disabled=false;
+  $('rf-status-chip').textContent="It's your turn — answer verbally!";
+  $('rf-status-chip').className='status-chip myturn';
+  if(msg.timerEnd) startRFTimerBar(msg.timerEnd,60,'rf-timer-bar','rf-timer-secs');
+}
+
+// ── RF STATE RENDER ───────────────────────────────────────────
+function renderRFState(s){
+  const p=s.phase;
+  updateBar(s);
+
+  if(p==='rf_between'){
+    const nextTid=s.teamOrder?.[s.rfTeamIdx];
+    const nextName=s.teams?.[nextTid]?.name||'Next Team';
+    showScreen('wait-screen');
+    $('wait-circle').textContent='⚡ Up next: '+nextName;
+    stopRFTimer(); return;
+  }
+
+  if(p==='rf_complete'){
+    showScreen('wait-screen');
+    $('wait-circle').textContent='⚡ Rapid Fire complete!';
+    stopRFTimer(); return;
+  }
+
+  // rf_active
+  const activeTid=s.teamOrder?.[s.rfTeamIdx];
+  const isMe=activeTid===myId;
+
+  if(isMe){
+    // Show RF turn screen — question + timer + pass
+    showScreen('rf-screen');
+    if(s.rfCurrentQ){
+      $('rf-qnum').textContent='Question '+(s.rfCurrentQ.idx+1)+' of 6';
+      $('rf-q-text').textContent=s.rfCurrentQ.question||'';
+    }
+    $('rf-pass-btn').style.display='block';
+    $('rf-pass-btn').disabled=s.paused;
+    $('rf-status-chip').textContent=s.paused?'⏸ Paused':"Your turn — answer verbally!";
+    $('rf-status-chip').className='status-chip'+(s.paused?'':' myturn');
+    if(s.timerEnd&&!s.paused) startRFTimerBar(s.timerEnd,60,'rf-timer-bar','rf-timer-secs');
+    else if(s.paused) stopRFTimer();
+  } else {
+    // Spectator view — show who's answering + timer
+    const teamName=s.teams?.[activeTid]?.name||'Team';
+    showScreen('rf-spectate-screen');
+    $('rf-spec-team').textContent=teamName;
+    $('rf-spec-chip').textContent=s.paused?'⏸ Quiz paused':'Watch the main screen!';
+    $('rf-spec-chip').className='status-chip'+(s.paused?'':' other');
+    if(s.timerEnd&&!s.paused){
+      stopRFTimer();
+      rfTimerInt=setInterval(()=>{
+        const rem=Math.max(0,(s.timerEnd-Date.now())/1000);
+        const u=rem<=10;
+        $('rf-spec-secs').textContent=Math.ceil(rem);
+        $('rf-spec-secs').className='rf-spec-timer'+(u?' urgent':'');
+        $('rf-spec-bar').style.width=(rem/60*100)+'%';
+        $('rf-spec-bar').className='timer-bar'+(u?' urgent':'');
+        if(rem<=0)stopRFTimer();
+      },100);
+    } else if(s.paused){
+      stopRFTimer();
+    }
+  }
+}
+
 function resetAnswerState(){
   answered=false; buzzed=false;
   $('answered-msg').style.display='none';
   $('buzzed-confirm').style.display='none';
-  stopTimer();stopBzTimer();
+  stopTimer();stopBzTimer();stopRFTimer();
   document.querySelectorAll('.opt-btn').forEach(b=>{b.style.pointerEvents='';});
 }
 
@@ -683,6 +828,12 @@ $('pass-btn').onclick=()=>{
   $('answered-msg').style.display='block';
   $('pass-btn').style.display='none';
   send('rr_pass');
+};
+
+$('rf-pass-btn').onclick=()=>{
+  $('rf-pass-btn').disabled=true;
+  send('rf_pass');
+  if(navigator.vibrate)navigator.vibrate(60);
 };
 
 // ── BUZZ BUTTON ───────────────────────────────────────────────

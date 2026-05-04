@@ -35,12 +35,25 @@ app.get('/ip',      (_, r) => r.json({ ip: LOCAL_IP, port: PORT }));
 // ── POOLS ─────────────────────────────────────────────────────
 const pool1 = questions.filter(q => q.round === 1);
 const pool2 = questions.filter(q => q.round === 2);
+const pool3 = questions.filter(q => q.round === 3);
 
 function buildCatMap (pool) {
   const m = {};
   pool.forEach((q, i) => { if (!m[q.category]) m[q.category] = []; m[q.category].push(i); });
   return m;
 }
+
+// Build RF sets: { 1: [q,q,q,...], 2: [...], ... } sorted by order
+function buildRFSets () {
+  const sets = {};
+  pool3.forEach(q => {
+    if (!sets[q.set]) sets[q.set] = [];
+    sets[q.set].push(q);
+  });
+  Object.keys(sets).forEach(s => sets[s].sort((a, b) => a.order - b.order));
+  return sets;
+}
+const rfSets = buildRFSets();
 
 // ── REJOIN CODES ──────────────────────────────────────────────
 const rejoinCodes = {};
@@ -104,7 +117,14 @@ function freshState () {
     // ── TIEBREAKER ──
     isTiebreaker:        false,
     catMap1:             buildCatMap(pool1),
-    catMap2:             buildCatMap(pool2)
+    catMap2:             buildCatMap(pool2),
+    // ── RAPID FIRE ──
+    rfAssignment:        {},    // { teamId: setNumber }
+    rfRevealedSets:      [],    // set numbers that have been flipped
+    rfTeamIdx:           0,     // current team index in teamOrder
+    rfQuestionIdx:       0,     // current question index within rfCurrentSet (0-5)
+    rfCurrentSet:        [],    // full set of questions for active team (server-only)
+    rfSkippedQ:          []     // permanently skipped question indices in current set
   };
 }
 let state = freshState();
@@ -152,7 +172,13 @@ const hostSnap = () => ({
   bzAttempt:state.bzAttempt, bzLockedTeams:state.bzLockedTeams,
   bzActiveAnswerer:state.bzActiveAnswerer, bzAnsweringTeamName:state.bzAnsweringTeamName,
   remainingCats:remCounts(), anticip:state.anticip,
-  paused:state.paused, isTiebreaker:state.isTiebreaker
+  paused:state.paused, isTiebreaker:state.isTiebreaker,
+  // RF
+  rfAssignment:state.rfAssignment, rfRevealedSets:state.rfRevealedSets,
+  rfTeamIdx:state.rfTeamIdx, rfQuestionIdx:state.rfQuestionIdx,
+  rfCurrentQ: state.activeRound===3 && state.rfCurrentSet.length>0
+    ? { ...state.rfCurrentSet[state.rfQuestionIdx], idx:state.rfQuestionIdx }
+    : null
 });
 
 const dispSnap = () => ({
@@ -167,7 +193,13 @@ const dispSnap = () => ({
   r1Count:state.r1Count, r2Count:state.r2Count,
   bzAttempt:state.bzAttempt, bzLockedTeams:state.bzLockedTeams,
   bzActiveAnswerer:state.bzActiveAnswerer, bzAnsweringTeamName:state.bzAnsweringTeamName,
-  anticip:state.anticip, paused:state.paused, isTiebreaker:state.isTiebreaker
+  anticip:state.anticip, paused:state.paused, isTiebreaker:state.isTiebreaker,
+  // RF — question visible on display during active phase
+  rfAssignment:state.rfAssignment, rfRevealedSets:state.rfRevealedSets,
+  rfTeamIdx:state.rfTeamIdx, rfQuestionIdx:state.rfQuestionIdx,
+  rfCurrentQ: state.activeRound===3 && state.phase==='rf_active' && state.rfCurrentSet.length>0
+    ? { question:state.rfCurrentSet[state.rfQuestionIdx]?.question, idx:state.rfQuestionIdx }
+    : null
 });
 
 const buzzSnap = (tid) => ({
@@ -183,7 +215,15 @@ const buzzSnap = (tid) => ({
   bzActiveAnswerer:state.bzActiveAnswerer, bzAnsweringTeamName:state.bzAnsweringTeamName,
   splashData:state.splashData, revealData:state.revealData,
   timerEnd:state.timerEnd, bzCountdown:state.bzCountdown,
-  anticip:state.anticip, paused:state.paused, isTiebreaker:state.isTiebreaker
+  anticip:state.anticip, paused:state.paused, isTiebreaker:state.isTiebreaker,
+  // RF
+  rfAssignment:state.rfAssignment, rfRevealedSets:state.rfRevealedSets,
+  rfTeamIdx:state.rfTeamIdx, rfQuestionIdx:state.rfQuestionIdx,
+  isRFActiveTeam: state.activeRound===3 && state.teamOrder[state.rfTeamIdx]===tid,
+  rfCurrentQ: state.activeRound===3 && state.phase==='rf_active'
+    && state.teamOrder[state.rfTeamIdx]===tid && state.rfCurrentSet.length>0
+    ? { question:state.rfCurrentSet[state.rfQuestionIdx]?.question, idx:state.rfQuestionIdx }
+    : null
 });
 
 // ── SCORE HELPERS ─────────────────────────────────────────────
@@ -214,7 +254,7 @@ function stopBzCountdown () {
 }
 
 // ── PAUSE LOGIC ───────────────────────────────────────────────
-const UNPAUSABLE = ['lobby','starting','rr_complete','bz_transition','bz_complete','finale'];
+const UNPAUSABLE = ['lobby','starting','rr_complete','bz_transition','bz_complete','rf_assign','rf_reveal','rf_between','rf_complete','finale'];
 
 function pauseQuiz () {
   if (state.paused) return;
@@ -234,7 +274,8 @@ function pauseQuiz () {
     rr_answering: 'rrTimeout',
     bz_ready:     'bzNoBuzz',
     bz_answering: 'bzAnswer',
-    tiebreaker:   'bzNoBuzz'
+    tiebreaker:   'bzNoBuzz',
+    rf_active:    'rfTimeout'
   };
   state.pausedTimerCb = cbMap[state.phase] || null;
 
@@ -284,6 +325,7 @@ function resumeQuiz () {
       if (cbKey === 'rrTimeout')  rrOnPass(state.teamOrder[state.currentPasser], 'timeout');
       if (cbKey === 'bzNoBuzz')   bzOnNoBuzz();
       if (cbKey === 'bzAnswer')   bzOnTimeout(state.bzActiveAnswerer);
+      if (cbKey === 'rfTimeout')  rfOnTimeout();
     };
 
     state.timerEnd    = Date.now() + msLeft;
@@ -625,6 +667,134 @@ function autoEndBZ () {
   toAll();
 }
 
+// ══════════════════════════════════════════════════════════════
+//  RAPID FIRE ROUND
+// ══════════════════════════════════════════════════════════════
+
+// Assign sets to teams in teamOrder order (wraps if fewer sets than teams)
+function rfAssignSets () {
+  const setNums = Object.keys(rfSets).map(Number).sort((a, b) => a - b);
+  state.rfAssignment = {};
+  state.teamOrder.forEach((tid, i) => {
+    state.rfAssignment[tid] = setNums[i % setNums.length];
+  });
+  state.rfRevealedSets = [];
+  state.rfTeamIdx      = 0;
+  state.rfQuestionIdx  = 0;
+  state.rfCurrentSet   = [];
+  state.rfSkippedQ     = [];
+}
+
+function rfFlipCard (setNumber) {
+  if (!state.rfRevealedSets.includes(setNumber)) {
+    state.rfRevealedSets = [...state.rfRevealedSets, setNumber];
+  }
+  const assignedSets = Object.values(state.rfAssignment);
+  const allRevealed  = assignedSets.every(s => state.rfRevealedSets.includes(s));
+  state.phase = allRevealed ? 'rf_setup' : 'rf_reveal';
+  toAll();
+}
+
+function rfFlipAll () {
+  state.rfRevealedSets = [...new Set(Object.values(state.rfAssignment))];
+  state.phase = 'rf_setup';
+  toAll();
+}
+
+function rfBeginTurn () {
+  const tid    = state.teamOrder[state.rfTeamIdx];
+  const setNum = state.rfAssignment[tid];
+  state.rfCurrentSet  = rfSets[setNum] ? [...rfSets[setNum]] : [];
+  state.rfQuestionIdx = 0;
+  state.rfSkippedQ    = [];
+  state.phase         = 'rf_active';
+  startTimer(60, rfOnTimeout);
+  toAll();
+  toTeam(tid, { type:'rf_your_turn',
+    question: state.rfCurrentSet[0]?.question || '',
+    questionIdx: 0, timerEnd: state.timerEnd });
+  saveState();
+}
+
+function rfActiveQuestion () {
+  const tid = state.teamOrder[state.rfTeamIdx];
+  const q   = state.rfCurrentSet[state.rfQuestionIdx];
+  toAll();
+  if (state.phase === 'rf_active') {
+    toTeam(tid, { type:'rf_your_turn',
+      question: q?.question || '',
+      questionIdx: state.rfQuestionIdx, timerEnd: state.timerEnd });
+  }
+}
+
+function rfOnCorrect () {
+  if (state.phase !== 'rf_active') return;
+  const tid = state.teamOrder[state.rfTeamIdx];
+  state.scores[tid] = (state.scores[tid] || 0) + 10;
+  if (state.teams[tid]) state.teams[tid].score = state.scores[tid];
+  saveState();
+  rfAdvanceQuestion();
+}
+
+function rfOnPassQ () {
+  if (state.phase !== 'rf_active') return;
+  rfAdvanceQuestion();
+}
+
+function rfAdvanceQuestion () {
+  let next = state.rfQuestionIdx + 1;
+  while (next < 6 && state.rfSkippedQ.includes(next)) next++;
+  if (next >= 6) { rfEndTurn(); return; }
+  state.rfQuestionIdx = next;
+  rfActiveQuestion();
+}
+
+function rfOnTimeout () {
+  if (state.phase !== 'rf_active') return;
+  stopTimer();
+  rfEndTurn();
+}
+
+function rfEndTurn () {
+  stopTimer();
+  const assignedTeams = state.teamOrder.filter(tid => state.rfAssignment[tid] != null);
+  const nextIdx       = state.rfTeamIdx + 1;
+  state.rfCurrentSet  = [];
+  state.rfSkippedQ    = [];
+  if (nextIdx >= assignedTeams.length) {
+    state.phase = 'rf_complete';
+  } else {
+    state.rfTeamIdx     = nextIdx;
+    state.rfQuestionIdx = 0;
+    state.phase         = 'rf_between';
+  }
+  toAll();
+  saveState();
+}
+
+// ── ROUND SWITCHER ────────────────────────────────────────────
+function switchToRound (round) {
+  stopTimer(); stopBzCountdown();
+  state.splashData = null; state.revealData = null;
+  state.anticip    = false; state.currentQ = null; state.currentQFull = null;
+  if (round === 1) {
+    state.activeRound = 1;
+    state.phase       = 'rr_setup';
+    state.currentIntended = 0; state.currentQuestionTeam = 0;
+    state.currentPasser   = 0; state.passChain = [];
+  } else if (round === 2) {
+    state.activeRound = 2;
+    state.phase       = 'bz_setup';
+    state.bzAttempt   = 0; state.bzLockedTeams = [];
+    state.bzActiveAnswerer = null; state.bzAnsweringTeamName = null;
+  } else if (round === 3) {
+    state.activeRound = 3;
+    if (!Object.keys(state.rfAssignment).length) rfAssignSets();
+    state.phase = 'rf_assign';
+  }
+  toAll();
+}
+
 // ── FULL RESET ────────────────────────────────────────────────
 function fullReset () {
   stopTimer(); stopBzCountdown();
@@ -923,6 +1093,75 @@ wss.on('connection', ws => {
         else bzOnWrong(c.teamId);
         break;
       }
+
+      // ── HOST: ROUND SWITCHER ──
+      case 'switch_to_rr':
+        if (c.role !== 'host') break;
+        switchToRound(1); break;
+
+      case 'switch_to_bz':
+        if (c.role !== 'host') break;
+        switchToRound(2); break;
+
+      case 'switch_to_rf':
+        if (c.role !== 'host') break;
+        switchToRound(3); break;
+
+      // ── HOST: SKIP CURRENT QUESTION ──
+      case 'skip_question': {
+        if (c.role !== 'host') break;
+        if (state.phase === 'rr_answering') {
+          // Mark used, skip without score, expiry behaviour
+          stopTimer(); rrExpire();
+        } else if (state.phase === 'bz_answering' || state.phase === 'bz_ready') {
+          stopTimer(); stopBzCountdown(); bzExpire();
+        } else if (state.phase === 'rf_active') {
+          state.rfSkippedQ = [...state.rfSkippedQ, state.rfQuestionIdx];
+          rfAdvanceQuestion();
+        }
+        break;
+      }
+
+      // ── HOST: RAPID FIRE ──
+      case 'advance_to_rf':
+        if (c.role !== 'host') break;
+        switchToRound(3); break;
+
+      case 'rf_flip_card': {
+        if (c.role !== 'host') break;
+        if (!['rf_assign','rf_reveal'].includes(state.phase)) break;
+        const sn = Number(msg.setNumber);
+        if (!rfSets[sn]) break;
+        rfFlipCard(sn);
+        break;
+      }
+
+      case 'rf_flip_all':
+        if (c.role !== 'host') break;
+        if (!['rf_assign','rf_reveal'].includes(state.phase)) break;
+        rfFlipAll(); break;
+
+      case 'rf_begin':
+        if (c.role !== 'host' || state.phase !== 'rf_setup') break;
+        rfBeginTurn(); break;
+
+      case 'rf_start_team':
+        if (c.role !== 'host' || state.phase !== 'rf_between') break;
+        rfBeginTurn(); break;
+
+      case 'rf_correct':
+        if (c.role !== 'host' || state.phase !== 'rf_active' || state.paused) break;
+        rfOnCorrect(); break;
+
+      case 'rf_pass':
+        if (state.paused) break;
+        if (state.phase !== 'rf_active') break;
+        if (c.role === 'host') { rfOnPassQ(); break; }
+        // Team pass — only active RF team
+        if (c.role === 'buzzer' && state.teamOrder[state.rfTeamIdx] === c.teamId) {
+          rfOnPassQ();
+        }
+        break;
     }
   });
 

@@ -133,6 +133,27 @@ input:focus{outline:none;border-color:#EE963F}
 .reduce-row{display:flex;gap:5px;align-items:center}
 .reduce-row input{flex:1}
 .locked-chip{font-size:11px;background:#A32D2D1a;color:#F09595;border:1px solid #A32D2D33;padding:2px 7px;border-radius:8px;margin:2px}
+
+/* ROUND SWITCHER */
+#round-switcher{display:flex;gap:5px;background:#0d1117;border:1px solid #ffffff12;border-radius:8px;padding:5px;margin-bottom:5px}
+.rs-btn{flex:1;padding:6px 5px;border-radius:6px;border:1px solid transparent;background:transparent;color:#555;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;letter-spacing:.04em;text-transform:uppercase;transition:all .15s}
+.rs-btn:hover:not(.rs-active){background:#ffffff0d;color:#aaa}
+.rs-btn.rs-active.rr{background:#185FA533;border-color:#378ADD;color:#85B7EB}
+.rs-btn.rs-active.bz{background:#EE963F22;border-color:#EE963F;color:#EE963F}
+.rs-btn.rs-active.rf{background:#1D9E7522;border-color:#1D9E75;color:#5DCAA5}
+
+/* RAPID FIRE PANEL */
+.btn.rf{background:#1D9E7522;border-color:#1D9E75;color:#5DCAA5;font-weight:700}
+.btn.rf:hover:not(:disabled){background:#1D9E7544}
+#rf-flip-panel .flip-row{display:flex;align-items:center;gap:7px;padding:5px 8px;border-radius:7px;background:#ffffff06;border:1px solid #ffffff0f;margin-bottom:4px}
+#rf-flip-panel .flip-team{flex:1;font-size:13px;color:#e2ddc7;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#rf-flip-panel .flip-set{font-size:12px;font-weight:700;color:#1D9E75;min-width:40px}
+#rf-flip-panel .flip-btn{font-size:11px;padding:4px 10px;border-radius:6px;border:1px solid #1D9E7544;background:#1D9E7511;color:#5DCAA5;cursor:pointer;font-family:inherit}
+#rf-flip-panel .flip-btn:disabled{opacity:.25;cursor:not-allowed}
+#rf-active-q{background:#0f1117;border:1px solid #1D9E7533;border-radius:8px;padding:10px 12px;font-size:14px;line-height:1.55;color:#e2ddc7;margin-bottom:6px;min-height:48px}
+#rf-answer{background:#1D9E7511;border:1px solid #1D9E7544;border-radius:7px;padding:8px 12px;font-size:13px;color:#5DCAA5;font-weight:600;margin-bottom:8px}
+#rf-qcounter{font-size:11px;color:#444;text-align:center;margin-bottom:4px}
+.rf-timeout-ans{background:#2a1200;border:1px solid #85500B;border-radius:7px;padding:8px 12px;font-size:13px;color:#EF9F27;margin-top:6px;display:none}
 </style>
 </head>
 <body>
@@ -154,6 +175,16 @@ input:focus{outline:none;border-color:#EE963F}
     <h2>What's happening</h2>
     <div id="big-status">Connecting…</div>
     <div id="timer-val"></div>
+  </div>
+
+  <!-- ROUND SWITCHER — always visible -->
+  <div class="card" id="round-switcher-card" style="display:none">
+    <h2>Switch Round</h2>
+    <div id="round-switcher">
+      <button class="rs-btn rr" id="rs-rr">Round Robin</button>
+      <button class="rs-btn bz" id="rs-bz">Buzzer</button>
+      <button class="rs-btn rf" id="rs-rf">⚡ Rapid Fire</button>
+    </div>
   </div>
 
   <div class="card" id="event-card">
@@ -181,6 +212,7 @@ input:focus{outline:none;border-color:#EE963F}
         <button class="btn sec"   id="btn-rr-pass"  disabled>→ Pass</button>
       </div>
       <button class="btn sec" id="btn-rr-skip" disabled>Skip Timer</button>
+      <button class="btn amber" id="btn-rr-skipq" disabled>⚠ Skip Question</button>
     </div>
   </div>
 
@@ -201,7 +233,46 @@ input:focus{outline:none;border-color:#EE963F}
       <button class="btn success" id="btn-bz-correct" disabled>✓ Correct +10</button>
       <button class="btn danger"  id="btn-bz-wrong"   disabled>✗ Wrong / Timeout −5</button>
       <button class="btn sec"     id="btn-bz-skip"    disabled>Skip Answer Timer</button>
+      <button class="btn amber"   id="btn-bz-skipq"   disabled>⚠ Skip Question</button>
     </div>
+  </div>
+
+  <!-- RAPID FIRE — card flip panel -->
+  <div class="card" id="rf-flip-card" style="display:none">
+    <h2>⚡ Rapid Fire — Set Assignment</h2>
+    <div class="bstack">
+      <div id="rf-flip-panel"></div>
+      <div class="btn2" style="margin-top:4px">
+        <button class="btn rf" id="btn-rf-flip-all">Flip All Cards</button>
+        <button class="btn advance" id="btn-rf-begin" style="display:none">Begin Rapid Fire →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- RAPID FIRE — active turn panel -->
+  <div class="card" id="rf-active-card" style="display:none">
+    <h2>⚡ Rapid Fire — <span id="rf-team-name">Team</span></h2>
+    <div id="rf-qcounter">Q1 of 6</div>
+    <div id="rf-active-q">Loading…</div>
+    <div id="rf-answer"></div>
+    <div class="btn2">
+      <button class="btn success" id="btn-rf-correct" style="font-size:17px">✓ CORRECT +10</button>
+      <button class="btn sec"     id="btn-rf-pass"    style="font-size:17px">→ PASS</button>
+    </div>
+    <div class="rf-timeout-ans" id="rf-timeout-ans"></div>
+  </div>
+
+  <!-- RAPID FIRE — between teams -->
+  <div class="card" id="rf-between-card" style="display:none">
+    <h2>⚡ Rapid Fire — Next Team</h2>
+    <div id="rf-next-team-info" style="font-size:13px;color:#888;margin-bottom:8px"></div>
+    <button class="btn rf" id="btn-rf-start-team">Start Next Team's Turn →</button>
+  </div>
+
+  <!-- RAPID FIRE — complete -->
+  <div class="card" id="rf-complete-card" style="display:none">
+    <h2>⚡ Rapid Fire Complete</h2>
+    <button class="btn advance" id="btn-rf-finale">Show Final Leaderboard →</button>
   </div>
 
   <div class="card" id="end-card" style="display:none">
@@ -372,6 +443,7 @@ function renderPause(s){
 function renderStatus(s){
   const p=s.phase, current=s.teams[s.teamOrder?.[s.currentPasser]]?.name||'',
     active=s.bzAnsweringTeamName||s.teams[s.bzActiveAnswerer]?.name||'';
+  const rfTeamName=s.teams[s.teamOrder?.[s.rfTeamIdx]]?.name||'Team';
   const msgs={
     lobby:'Lobby — teams joining. Set order then lock.',
     starting:'Welcome banner playing.',
@@ -393,7 +465,13 @@ function renderStatus(s){
     bz_reopen:'Reopening in '+s.bzCountdown+'s — Attempt '+(s.bzAttempt+1)+' of 3.',
     bz_complete:'Buzzer Round done! Advance to leaderboard.',
     finale:'Final leaderboard on screen.',
-    tiebreaker:(s.paused?'PAUSED — ':'')+'TIEBREAKER in progress.'
+    tiebreaker:(s.paused?'PAUSED — ':'')+'TIEBREAKER in progress.',
+    rf_assign:'⚡ Rapid Fire — flip cards to reveal set assignments.',
+    rf_reveal:'⚡ Rapid Fire — revealing cards…',
+    rf_setup:'⚡ All cards revealed — click Begin Rapid Fire for first team.',
+    rf_active:(s.paused?'PAUSED — ':'')+rfTeamName+' answering — Q'+(s.rfQuestionIdx+1)+' of 6. CORRECT or PASS.',
+    rf_between:'⚡ Turn done. Click Start Next Team when ready.',
+    rf_complete:'⚡ Rapid Fire complete! Advance to final leaderboard.'
   };
   $('big-status').textContent=msgs[p]||p;
 }
@@ -403,22 +481,90 @@ function renderCards(s){
   const p=s.phase;
   const rrActive=['rr_setup','rr_anticip','rr_answering','rr_answered','rr_reveal','rr_reveal_answer'].includes(p);
   const bzActive=['bz_setup','bz_anticip','bz_ready','bz_answering','bz_answered','bz_reveal','bz_reveal_answer','bz_reopen','tiebreaker'].includes(p);
+  const rfFlipping=['rf_assign','rf_reveal'].includes(p);
+  const rfSetup=p==='rf_setup';
+  const rfActiveP=p==='rf_active';
+  const rfBetween=p==='rf_between';
+  const rfComplete=p==='rf_complete';
+  const rfAny=['rf_assign','rf_reveal','rf_setup','rf_active','rf_between','rf_complete'].includes(p);
+  const midGame=!['lobby','starting'].includes(p);
+
   $('event-card').style.display=['lobby','starting'].includes(p)?'block':'none';
   $('team-order-card').style.display=['lobby','starting','rr_setup'].includes(p)?'block':'none';
   $('rr-card').style.display=rrActive?'block':'none';
   $('bz-card').style.display=bzActive?'block':'none';
   $('bz-complete-card').style.display=p==='bz_complete'?'block':'none';
-  $('end-card').style.display=bzActive?'block':'none';
+  $('end-card').style.display=(bzActive||rfAny)?'block':'none';
+  $('round-switcher-card').style.display=midGame?'block':'none';
+  $('rf-flip-card').style.display=(rfFlipping||rfSetup)?'block':'none';
+  $('rf-active-card').style.display=rfActiveP?'block':'none';
+  $('rf-between-card').style.display=rfBetween?'block':'none';
+  $('rf-complete-card').style.display=rfComplete?'block':'none';
+
+  // Round switcher active state
+  $('rs-rr').className='rs-btn rr'+(s.activeRound===1?' rs-active':'');
+  $('rs-bz').className='rs-btn bz'+(s.activeRound===2?' rs-active':'');
+  $('rs-rf').className='rs-btn rf'+(s.activeRound===3?' rs-active':'');
+
   const paused=s.paused;
   $('btn-next-rr').disabled=!rrActive||['rr_answering','rr_anticip'].includes(p)||paused;
   $('btn-rr-correct').disabled=p!=='rr_answering'||paused;
   $('btn-rr-wrong').disabled=p!=='rr_answering'||paused;
   $('btn-rr-pass').disabled=p!=='rr_answering'||paused;
   $('btn-rr-skip').disabled=!s.timerEnd||p!=='rr_answering'||paused;
+  $('btn-rr-skipq').disabled=p!=='rr_answering'||paused;
   $('btn-next-bz').disabled=!bzActive||['bz_anticip','bz_ready','bz_answering','bz_reopen'].includes(p)||paused;
   $('btn-bz-correct').disabled=!s.bzActiveAnswerer||p!=='bz_answering'||paused;
   $('btn-bz-wrong').disabled=!s.bzActiveAnswerer||p!=='bz_answering'||paused;
   $('btn-bz-skip').disabled=!s.timerEnd||p!=='bz_answering'||paused;
+  $('btn-bz-skipq').disabled=!(p==='bz_answering'||p==='bz_ready')||paused;
+
+  // RF flip panel
+  if(rfFlipping||rfSetup) renderRFFlipPanel(s);
+  if(rfSetup){
+    $('btn-rf-begin').style.display='block';
+    $('btn-rf-flip-all').style.display='none';
+  } else if(rfFlipping){
+    $('btn-rf-begin').style.display='none';
+    $('btn-rf-flip-all').style.display='block';
+  }
+  // RF active panel
+  if(rfActiveP) renderRFActive(s);
+  // RF between panel
+  if(rfBetween){
+    const nextTeam=s.teams[s.teamOrder?.[s.rfTeamIdx]]?.name||'Next Team';
+    $('rf-next-team-info').textContent='Up next: '+nextTeam;
+  }
+}
+
+function renderRFFlipPanel(s){
+  const panel=$('rf-flip-panel');
+  if(!s.teamOrder?.length){panel.innerHTML='';return;}
+  panel.innerHTML=s.teamOrder.map(tid=>{
+    const t=s.teams[tid]; if(!t) return '';
+    const setNum=s.rfAssignment[tid];
+    const revealed=s.rfRevealedSets?.includes(setNum);
+    return `<div class="flip-row">
+      <span class="flip-team">${esc(t.name)}</span>
+      <span class="flip-set">${revealed?'Set '+setNum:'?'}</span>
+      <button class="flip-btn" ${revealed?'disabled':''} onclick="sendFlipCard(${setNum})">${revealed?'✓':'Flip'}</button>
+    </div>`;
+  }).join('');
+}
+
+function sendFlipCard(setNum){send('rf_flip_card',{setNumber:setNum});}
+
+function renderRFActive(s){
+  if(!s.rfCurrentQ) return;
+  const q=s.rfCurrentQ;
+  const teamName=s.teams[s.teamOrder?.[s.rfTeamIdx]]?.name||'Team';
+  $('rf-team-name').textContent=teamName;
+  $('rf-qcounter').textContent='Q'+(q.idx+1)+' of 6 — '+esc(teamName);
+  $('rf-active-q').textContent=q.question||'';
+  $('rf-answer').textContent='Answer: '+(q.answer||'');
+  $('rf-timeout-ans').style.display='none';
+  $('btn-rf-correct').disabled=s.paused;
+  $('btn-rf-pass').disabled=s.paused;
 }
 
 // ── TEAM ORDER (left panel / controls tab) ────────────────────
@@ -608,12 +754,35 @@ $('btn-rr-correct').onclick=()=>send('rr_mark_correct');
 $('btn-rr-wrong').onclick=()=>send('rr_mark_wrong');
 $('btn-rr-pass').onclick=()=>send('rr_mark_pass');
 $('btn-rr-skip').onclick=()=>send('rr_skip_timer');
+$('btn-rr-skipq').onclick=()=>{if(confirm('Skip this question? (Score unchanged — adjust manually if needed)'))send('skip_question');};
 $('btn-next-bz').onclick=()=>send('next_bz_question',{category:$('bz-cat-sel').value});
 $('btn-bz-correct').onclick=()=>send('bz_mark_correct');
 $('btn-bz-wrong').onclick=()=>send('bz_mark_wrong');
 $('btn-bz-skip').onclick=()=>send('bz_skip_timer');
+$('btn-bz-skipq').onclick=()=>{if(confirm('Skip this question? (Score unchanged — adjust manually if needed)'))send('skip_question');};
 $('btn-end-event').onclick=()=>{if(confirm('End event?'))send('end_event');};
 $('btn-advance-finale').onclick=()=>send('advance_to_finale');
+
+// RF buttons
+$('btn-rf-flip-all').onclick=()=>send('rf_flip_all');
+$('btn-rf-begin').onclick=()=>send('rf_begin');
+$('btn-rf-correct').onclick=()=>send('rf_correct');
+$('btn-rf-pass').onclick=()=>send('rf_pass');
+$('btn-rf-start-team').onclick=()=>send('rf_start_team');
+$('btn-rf-finale').onclick=()=>send('advance_to_finale');
+
+// Round switcher
+function confirmSwitch(round){
+  const midQ=['rr_answering','rr_anticip','bz_anticip','bz_ready','bz_answering','rf_active'].includes(lastS.phase);
+  if(midQ){
+    if(!confirm('This will abandon the current question. Continue?')) return;
+  }
+  send(round===1?'switch_to_rr':round===2?'switch_to_bz':'switch_to_rf');
+}
+$('rs-rr').onclick=()=>{if(lastS.activeRound===1) return; confirmSwitch(1);};
+$('rs-bz').onclick=()=>{if(lastS.activeRound===2) return; confirmSwitch(2);};
+$('rs-rf').onclick=()=>{if(lastS.activeRound===3) return; confirmSwitch(3);};
+
 $('btn-rr-reduce').onclick=()=>{
   const v=parseInt($('rr-total-inp').value);if(!v||v<1)return;
   if(!confirm('Reduce Round Robin to '+v+'?'))return;
@@ -633,8 +802,6 @@ $('btn-reset-all').onclick=()=>{
 $('btn-add-team').onclick=()=>{
   const n=$('new-team-name').value.trim();
   if(!n){alert('Enter a team name.');return;}
-  // Send as a fake join — server allows this during pause
-  // We need to use WS directly since the server identifies via identify_buzzer
   ws.send(JSON.stringify({type:'identify_host_add_team',teamName:n}));
   $('new-team-name').value='';
 };
