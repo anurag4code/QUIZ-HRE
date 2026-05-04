@@ -99,6 +99,49 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0d1117;font-family:
 #bz-trans-screen h1{font-size:72px;font-weight:900;color:#fff}
 #bz-trans-screen .bt-sub{font-size:24px;color:#888}
 
+/* ── RAPID FIRE SCREENS ── */
+
+/* RF ASSIGN / REVEAL — fullscreen card flip */
+#rf-assign-screen{display:none;position:fixed;inset:0;z-index:100;background:#0d1117;flex-direction:column;align-items:center;justify-content:center;gap:28px;padding:40px}
+.rf-assign-label{font-size:13px;color:#1D9E75;letter-spacing:.2em;text-transform:uppercase}
+.rf-assign-title{font-size:44px;font-weight:900;color:#fff}
+#rf-cards-row{display:flex;gap:20px;flex-wrap:wrap;justify-content:center;perspective:1200px}
+.rf-card{width:160px;height:200px;position:relative;transform-style:preserve-3d;transition:transform .6s cubic-bezier(.4,0,.2,1)}
+.rf-card.flipped{transform:rotateY(180deg)}
+.rf-card-face{position:absolute;inset:0;border-radius:14px;backface-visibility:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:14px}
+.rf-card-front{background:#161b29;border:2px solid #1D9E7544;color:#e2ddc7}
+.rf-card-back{background:#1D9E7522;border:2px solid #1D9E75;transform:rotateY(180deg)}
+.rf-card-team{font-size:14px;font-weight:700;color:#e2ddc7;text-align:center;line-height:1.3}
+.rf-card-icon{font-size:36px}
+.rf-card-set{font-size:40px;font-weight:900;color:#1D9E75;line-height:1}
+.rf-card-setlabel{font-size:12px;color:#5DCAA5;letter-spacing:.08em;text-transform:uppercase}
+
+/* RF ACTIVE — team turn screen */
+#rf-active-screen{display:none;position:fixed;inset:0;z-index:100;background:#0a1a12;flex-direction:column;gap:0}
+#rf-act-hdr{background:#0f2318;border-bottom:3px solid #1D9E75;display:flex;align-items:center;justify-content:space-between;padding:16px 36px;flex-shrink:0}
+.rf-act-round{font-size:13px;color:#1D9E75;letter-spacing:.16em;text-transform:uppercase;font-weight:700}
+#rf-act-team{font-size:32px;font-weight:900;color:#fff}
+#rf-act-score{font-size:22px;font-weight:700;color:#5DCAA5}
+#rf-act-body{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:28px 60px;gap:24px}
+#rf-act-qnum{font-size:16px;color:#1D9E75;letter-spacing:.1em;font-weight:700;text-transform:uppercase}
+#rf-act-q{font-size:30px;font-weight:600;line-height:1.4;color:#fff;text-align:center;background:#0f2318;border-left:5px solid #1D9E75;padding:20px 28px;border-radius:0 12px 12px 0;width:100%;max-width:900px}
+#rf-act-timer-wrap{width:100%;max-width:800px;display:flex;flex-direction:column;align-items:center;gap:8px}
+#rf-act-secs{font-size:100px;font-weight:900;color:#1D9E75;line-height:1;letter-spacing:-.02em;transition:color .3s}
+#rf-act-secs.urgent{color:#E24B4A;animation:rfpulse .5s ease-in-out infinite}
+#rf-act-bar-wrap{width:100%;height:10px;background:#ffffff10;border-radius:5px;overflow:hidden}
+#rf-act-bar{height:100%;border-radius:5px;background:#1D9E75;transition:width .3s linear,background .3s}
+#rf-act-bar.urgent{background:#E24B4A}
+
+/* RF BETWEEN — waiting for next team */
+#rf-between-screen{display:none;position:fixed;inset:0;z-index:100;background:#0d1117;flex-direction:column;align-items:center;justify-content:center;gap:18px}
+.rf-between-label{font-size:14px;color:#1D9E75;letter-spacing:.15em;text-transform:uppercase}
+#rf-between-next{font-size:42px;font-weight:800;color:#fff;text-align:center}
+
+/* RF COMPLETE */
+#rf-complete-screen{display:none;position:fixed;inset:0;z-index:100;background:#0d1117;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:40px}
+
+@keyframes rfpulse{0%,100%{transform:scale(1)}50%{transform:scale(1.04)}}
+
 /* REVEAL ANSWER */
 #reveal-screen{display:none;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:18px}
 .rv-label{font-size:14px;color:#EE963F;letter-spacing:.1em;text-transform:uppercase}
@@ -249,6 +292,43 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0d1117;font-family:
   <div class="bt-label">Advancing to</div>
   <h1>⚡ Buzzer Round</h1>
   <div class="bt-sub">Get ready — it's about to get fast!</div>
+</div>
+
+<!-- RF ASSIGN / REVEAL -->
+<div id="rf-assign-screen">
+  <div class="rf-assign-label">⚡ Rapid Fire Round</div>
+  <div class="rf-assign-title">Set Assignments</div>
+  <div id="rf-cards-row"></div>
+</div>
+
+<!-- RF ACTIVE — fullscreen team turn -->
+<div id="rf-active-screen">
+  <div id="rf-act-hdr">
+    <div class="rf-act-round">⚡ Rapid Fire</div>
+    <div id="rf-act-team">Team Falcon</div>
+    <div id="rf-act-score">0 pts</div>
+  </div>
+  <div id="rf-act-body">
+    <div id="rf-act-qnum">Question 1 of 6</div>
+    <div id="rf-act-q">Waiting for host…</div>
+    <div id="rf-act-timer-wrap">
+      <div id="rf-act-secs">60</div>
+      <div id="rf-act-bar-wrap"><div id="rf-act-bar"></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- RF BETWEEN — waiting for next team -->
+<div id="rf-between-screen">
+  <div class="rf-between-label">Rapid Fire — Up Next</div>
+  <div id="rf-between-next">Next team loading…</div>
+</div>
+
+<!-- RF COMPLETE -->
+<div id="rf-complete-screen">
+  <div class="rrc-title">⚡ Rapid Fire Complete</div>
+  <div class="rrc-heading">Leaderboard</div>
+  <div id="rfc-board"></div>
 </div>
 
 <!-- FINALE -->
@@ -456,6 +536,11 @@ function renderPhase(s){
   $('eligibility-row').style.display='none';
   $('bz-anticip-overlay').className='';   // hide overlay
   $('bz-reopen-overlay').className='';    // hide overlay
+  // RF screens
+  $('rf-assign-screen').style.display='none';
+  $('rf-active-screen').style.display='none';
+  $('rf-between-screen').style.display='none';
+  $('rf-complete-screen').style.display='none';
 
   updateHdrBadges(s);
 
@@ -485,6 +570,13 @@ function renderPhase(s){
   if(p==='rr_complete'){renderRRComplete(s); return;}
   if(p==='bz_transition'){$('bz-trans-screen').style.display='flex';setStatus('');return;}
   if(p==='finale'||p==='bz_complete'){renderFinale(s);return;}
+
+  // RF phases
+  if(p==='rf_assign'||p==='rf_reveal'){renderRFAssign(s);return;}
+  if(p==='rf_setup'){renderRFAssign(s);return;}
+  if(p==='rf_active'){renderRFActive(s);return;}
+  if(p==='rf_between'){renderRFBetween(s);return;}
+  if(p==='rf_complete'){renderRFComplete(s);return;}
 
   // RR anticipation — show standby, clear question text so old Q never flashes
   if(s.anticip){
@@ -685,8 +777,9 @@ function updateHdrBadges(s){
   const hr=$('hdr-round'),hq=$('hdr-q'),hc=$('hdr-cat'),hd=$('hdr-diff');
   if(s.activeRound===1){hr.className='round-badge rr-badge';hr.textContent='Round Robin';hr.style.display='inline-block';hq.textContent='Q'+s.r1Count+' of '+s.r1Total;}
   else if(s.activeRound===2){hr.className='round-badge bz-badge';hr.textContent='Buzzer Round';hr.style.display='inline-block';hq.textContent='Q'+s.r2Count+' of '+s.r2Total;}
+  else if(s.activeRound===3){hr.className='round-badge';hr.style.cssText+='background:#1D9E7522;color:#5DCAA5;border:1px solid #1D9E7555';hr.textContent='⚡ Rapid Fire';hr.style.display='inline-block';hq.textContent='';}
   else{hr.style.display='none';hq.textContent='';}
-  if(s.currentQ){hc.textContent=s.currentQ.category;hc.style.display='inline-block';hd.textContent=s.currentQ.difficulty;hd.className='diff-'+s.currentQ.difficulty;hd.style.display='inline-block';}
+  if(s.currentQ&&s.activeRound!==3){hc.textContent=s.currentQ.category;hc.style.display='inline-block';hd.textContent=s.currentQ.difficulty;hd.className='diff-'+s.currentQ.difficulty;hd.style.display='inline-block';}
   else{hc.style.display='none';hd.style.display='none';}
 }
 
@@ -754,6 +847,91 @@ function spawnParticles(type){
 function clearParticles(){document.querySelectorAll('.cp,.dp').forEach(p=>p.remove());}
 
 $('tb-btn').onclick=()=>ws.send(JSON.stringify({type:'start_tiebreaker'}));
+
+// ── RAPID FIRE SCREENS ────────────────────────────────────────
+function renderRFAssign(s){
+  $('rf-assign-screen').style.display='flex';
+  stopTimer(); stopRevealCd();
+  const row=$('rf-cards-row'); row.innerHTML='';
+  (s.teamOrder||[]).forEach(tid=>{
+    const t=s.teams[tid]; if(!t) return;
+    const setNum=s.rfAssignment?.[tid];
+    if(setNum==null) return;
+    const revealed=s.rfRevealedSets?.includes(setNum);
+    const card=document.createElement('div');
+    card.className='rf-card'+(revealed?' flipped':'');
+    card.innerHTML=`
+      <div class="rf-card-face rf-card-front">
+        <div class="rf-card-icon">🎴</div>
+        <div class="rf-card-team">${esc(t.name)}</div>
+      </div>
+      <div class="rf-card-face rf-card-back">
+        <div class="rf-card-team">${esc(t.name)}</div>
+        <div class="rf-card-set">${setNum}</div>
+        <div class="rf-card-setlabel">Set ${setNum}</div>
+      </div>`;
+    row.appendChild(card);
+  });
+  setStatus(s.phase==='rf_setup'?'All sets revealed — host will begin shortly':'Host is revealing set assignments…');
+}
+
+let rfTimerInt=null;
+function stopRFTimer(){if(rfTimerInt){clearInterval(rfTimerInt);rfTimerInt=null;}}
+
+function renderRFActive(s){
+  $('rf-active-screen').style.display='flex';
+  stopTimer(); stopRevealCd();
+  const tid=s.teamOrder?.[s.rfTeamIdx];
+  const teamName=s.teams?.[tid]?.name||'Team';
+  const score=s.scores?.[tid]||0;
+  $('rf-act-team').textContent=teamName;
+  $('rf-act-score').textContent=score+' pts';
+  if(s.rfCurrentQ){
+    $('rf-act-q').textContent=s.rfCurrentQ.question||'';
+    $('rf-act-qnum').textContent='Question '+(s.rfCurrentQ.idx+1)+' of 6';
+  }
+  if(s.timerEnd) startRFTimer(s.timerEnd,60);
+  setStatus(teamName+' is answering — '+((s.rfCurrentQ?.idx||0)+1)+'/6');
+}
+
+function startRFTimer(end,total){
+  stopRFTimer();
+  const secsEl=$('rf-act-secs');
+  const bar=$('rf-act-bar');
+  rfTimerInt=setInterval(()=>{
+    const rem=Math.max(0,(end-Date.now())/1000);
+    const r=Math.ceil(rem);
+    secsEl.textContent=r;
+    bar.style.width=(rem/total*100)+'%';
+    const urgent=rem<=10;
+    secsEl.className='rf-act-secs'+(urgent?' urgent':'');
+    bar.className='rf-act-bar'+(urgent?' urgent':'');
+    if(rem<=0)stopRFTimer();
+  },100);
+}
+
+function renderRFBetween(s){
+  $('rf-between-screen').style.display='flex';
+  stopTimer(); stopRevealCd(); stopRFTimer();
+  const tid=s.teamOrder?.[s.rfTeamIdx];
+  const teamName=s.teams?.[tid]?.name||'Next Team';
+  $('rf-between-next').textContent=teamName+' — Get Ready!';
+  setStatus('Next team: '+teamName);
+}
+
+function renderRFComplete(s){
+  $('rf-complete-screen').style.display='flex';
+  stopTimer(); stopRevealCd(); stopRFTimer();
+  const sorted=Object.entries(s.scores||{}).map(([id,sc])=>({id,sc,name:s.teams[id]?.name||id})).sort((a,b)=>b.sc-a.sc);
+  $('rfc-board').innerHTML=sorted.map((t,i)=>`
+    <div class="rrc-row ${i===0?'top':''}">
+      <span class="rrc-rank">${i===0?'🏅':'#'+(i+1)}</span>
+      <span class="rrc-name ${i===0?'lead':''}">${esc(t.name)}</span>
+      <span class="rrc-score ${t.sc>0?'pos':t.sc<0?'neg':'zer'}">${t.sc}</span>
+    </div>`).join('');
+  spawnFinaleConfetti();
+  setStatus('');
+}
 </script>
 </body>
 </html>
